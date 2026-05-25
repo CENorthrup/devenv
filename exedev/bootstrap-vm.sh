@@ -108,18 +108,27 @@ ok "mise ready: $(mise --version)"
 # ---------------------------------------------------------------------------
 # 3. chezmoi
 #
-# Installs to ~/.local/bin/chezmoi.
-# Run from ~ to avoid installer dropping bin/ in the wrong place.
+# Installs to ~/bin/chezmoi on exe.dev (drops bin/ relative to $HOME).
+# We add ~/bin to PATH to ensure it's accessible after install.
 # ---------------------------------------------------------------------------
 
-if ! command_exists chezmoi && [ ! -f "$HOME/.local/bin/chezmoi" ]; then
+export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
+
+if ! command_exists chezmoi; then
   info "Installing chezmoi"
   cd ~ && sh -c "$(curl -fsLS get.chezmoi.io)"
 else
   info "chezmoi already installed, skipping"
 fi
 
-ok "chezmoi ready: $(~/.local/bin/chezmoi --version)"
+# Resolve whichever path it landed in
+CHEZMOI_BIN=$(command -v chezmoi || echo "")
+if [ -z "$CHEZMOI_BIN" ]; then
+  echo "ERROR: chezmoi not found after install. Check install output above."
+  exit 1
+fi
+
+ok "chezmoi ready: $($CHEZMOI_BIN --version)"
 
 # ---------------------------------------------------------------------------
 # 4. Clone dotfiles repo
@@ -133,35 +142,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Generate age key
-#
-# Each VM gets its own age key for secrets management. This allows tracking
-# which key belongs to which machine. After bootstrap completes, the public
-# key is printed — add it to your chezmoi config as an additional recipient
-# so this VM can decrypt dotfile secrets.
-#
-# Skipped if a key already exists (e.g. on a cloned VM).
-# ---------------------------------------------------------------------------
-
-AGE_KEY="$HOME/.config/age/key.txt"
-
-if [ ! -f "$AGE_KEY" ]; then
-  info "Generating age key"
-  mkdir -p "$HOME/.config/age"
-
-  # age is installed via mise — use the shim path directly since PATH
-  # may not be fully configured yet
-  "$HOME/.local/share/mise/shims/age-keygen" -o "$AGE_KEY"
-  chmod 600 "$AGE_KEY"
-  ok "age key generated at $AGE_KEY"
-else
-  info "age key already exists, skipping generation"
-fi
-
-AGE_PUBLIC_KEY=$(grep "public key:" "$AGE_KEY" | awk '{print $NF}')
-
-# ---------------------------------------------------------------------------
-# 6. Bootstrap chezmoi config
+# 5. Bootstrap chezmoi config
 #
 # chezmoi needs sourceDir set before init will work. Without this file,
 # chezmoi init silently does nothing.
@@ -178,7 +159,7 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
-# 7. Apply chezmoi dotfiles
+# 6. Apply chezmoi dotfiles
 #
 # chezmoi init runs the .chezmoi.toml.tmpl template to generate the full
 # config, prompting for machine-specific values (display server, git config,
@@ -187,24 +168,52 @@ fi
 # ---------------------------------------------------------------------------
 
 info "Running chezmoi init"
-~/.local/bin/chezmoi init
+$CHEZMOI_BIN init
 
 info "Applying chezmoi dotfiles"
-~/.local/bin/chezmoi apply
+$CHEZMOI_BIN apply
 
 ok "Dotfiles applied"
 
 # ---------------------------------------------------------------------------
-# 8. Install mise toolchain
+# 7. Install mise toolchain
 #
 # Reads ~/.config/mise/config.toml (deployed by chezmoi above) and installs
 # all tools. Rust compilation is the slowest step — expect several minutes.
 # ---------------------------------------------------------------------------
 
 info "Installing mise toolchain (this may take several minutes)"
-~/.local/bin/mise install
+"$HOME/.local/bin/mise" install
 
 ok "mise toolchain installed"
+
+# Reload mise shims so newly installed tools are available
+eval "$("$HOME/.local/bin/mise" activate bash)"
+
+# ---------------------------------------------------------------------------
+# 8. Generate age key
+#
+# age is now installed via mise so the binary is available.
+# Each VM gets its own age key for secrets management — allows tracking
+# which key belongs to which machine.
+# Skipped if a key already exists (e.g. on a cloned VM).
+# After bootstrap completes, the public key is printed — add it to your
+# chezmoi config as an additional recipient so this VM can decrypt secrets.
+# ---------------------------------------------------------------------------
+
+AGE_KEY="$HOME/.config/age/key.txt"
+
+if [ ! -f "$AGE_KEY" ]; then
+  info "Generating age key"
+  mkdir -p "$HOME/.config/age"
+  age-keygen -o "$AGE_KEY"
+  chmod 600 "$AGE_KEY"
+  ok "age key generated at $AGE_KEY"
+else
+  info "age key already exists, skipping generation"
+fi
+
+AGE_PUBLIC_KEY=$(grep "public key:" "$AGE_KEY" | awk '{print $NF}')
 
 # ---------------------------------------------------------------------------
 # 9. [OPTIONAL] Set zsh as default shell
@@ -222,9 +231,6 @@ ok "mise toolchain installed"
 # ---------------------------------------------------------------------------
 
 info "Verifying key tools"
-
-# Reload mise shims so newly installed tools are available
-eval "$("$HOME/.local/bin/mise" activate bash)"
 
 TOOLS=(
   "git"
