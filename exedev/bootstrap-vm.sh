@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# bootstrap-vm.sh
+# bootstrap.sh
 #
-# Minimal headless Linux dev environment bootstrap for exe.dev VMs.
+# Bootstrap script for exe.dev dev VMs (exedev-dev).
+# Not intended for server VMs or local machines — separate bootstrap
+# scripts exist for those contexts.
 #
 # exe.dev context:
 #   - VMs are persistent — disk survives reboots and updates
@@ -21,29 +23,27 @@
 #   - Set the default shell (marked optional below)
 #   - Install clipboard tools, fonts, or display server packages
 #   - Install Docker (deferred — add when needed)
-#   - Generate SSH keys (see pre-flight below)
 #   - Authenticate GitHub CLI or Claude Code
 #   - Install WezTerm or any GUI tools
 #
 # Pre-flight (must be done manually before running):
 #
 #   1. SSH key for GitHub
-#      exe.dev handles VM access via its own IAM layer — you do not need
-#      an SSH key to access the VM itself. However you DO need one to pull
-#      from a private GitHub dotfiles repo. Generate a key and add the
-#      public key to GitHub before running this script.
+#      Generate directly on the VM — exe.dev handles VM access via its
+#      own IAM layer so no key is needed for VM access itself. You DO
+#      need one to pull from a private GitHub dotfiles repo.
 #
-#      ssh-keygen -t ed25519 -C "cenorthrup@pm.me-exedev"
-#      # Add ~/.ssh/id_ed25519.pub to GitHub → Settings → SSH Keys
+#      ssh-keygen -t ed25519 -C "cenorthrup@pm.me-exedev-dev"
+#      cat ~/.ssh/id_ed25519.pub
+#      # Add the public key to GitHub → Settings → SSH and GPG keys
 #
 # age keys:
 #   Each VM generates its own age key during bootstrap. After the script
 #   completes, the public key is printed and must be added to your chezmoi
 #   config as an additional recipient so this VM can decrypt dotfile secrets.
-#   This allows you to track which key belongs to which machine.
 #
 # Usage:
-#   bash bootstrap-vm.sh
+#   curl -fsSL https://raw.githubusercontent.com/CENorthrup/devenv/master/exedev/dev/bootstrap.sh | bash
 
 set -euo pipefail
 
@@ -85,7 +85,18 @@ sudo apt-get install -y \
 ok "System packages installed"
 
 # ---------------------------------------------------------------------------
-# 2. mise
+# 2. PATH setup
+#
+# Set PATH early so all installers and binaries are findable throughout
+# the script regardless of where they land. Also persist to ~/.bashrc
+# so tools are findable in the shell session after the script exits.
+# The permanent fix comes from the chezmoi-deployed .zshrc.
+# ---------------------------------------------------------------------------
+
+export PATH="$HOME/bin:$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+
+# ---------------------------------------------------------------------------
+# 3. mise
 #
 # Installs to ~/.local/bin/mise.
 # Run from ~ to avoid installer dropping bin/ in the wrong place.
@@ -103,16 +114,14 @@ fi
 info "Activating mise for this session"
 eval "$("$HOME/.local/bin/mise" activate bash)"
 
-ok "mise ready: $(mise --version)"
+ok "mise ready: $("$HOME/.local/bin/mise" --version)"
 
 # ---------------------------------------------------------------------------
-# 3. chezmoi
+# 4. chezmoi
 #
 # Installs to ~/bin/chezmoi on exe.dev (drops bin/ relative to $HOME).
-# We add ~/bin to PATH to ensure it's accessible after install.
+# PATH already includes ~/bin from step 2.
 # ---------------------------------------------------------------------------
-
-export PATH="$HOME/bin:$HOME/.local/bin:$PATH"
 
 if ! command_exists chezmoi; then
   info "Installing chezmoi"
@@ -122,7 +131,7 @@ else
 fi
 
 # Resolve whichever path it landed in
-CHEZMOI_BIN=$(command -v chezmoi || echo "")
+CHEZMOI_BIN=$(command -v chezmoi 2>/dev/null || echo "")
 if [ -z "$CHEZMOI_BIN" ]; then
   echo "ERROR: chezmoi not found after install. Check install output above."
   exit 1
@@ -131,7 +140,7 @@ fi
 ok "chezmoi ready: $($CHEZMOI_BIN --version)"
 
 # ---------------------------------------------------------------------------
-# 4. Clone dotfiles repo
+# 5. Clone dotfiles repo
 # ---------------------------------------------------------------------------
 
 if [ ! -d "$DOTFILES_DIR" ]; then
@@ -142,7 +151,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Bootstrap chezmoi config
+# 6. Bootstrap chezmoi config
 #
 # chezmoi needs sourceDir set before init will work. Without this file,
 # chezmoi init silently does nothing.
@@ -159,7 +168,7 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
-# 6. Apply chezmoi dotfiles
+# 7. Apply chezmoi dotfiles
 #
 # chezmoi init runs the .chezmoi.toml.tmpl template to generate the full
 # config, prompting for machine-specific values (display server, git config,
@@ -176,7 +185,7 @@ $CHEZMOI_BIN apply
 ok "Dotfiles applied"
 
 # ---------------------------------------------------------------------------
-# 7. Install mise toolchain
+# 8. Install mise toolchain
 #
 # Reads ~/.config/mise/config.toml (deployed by chezmoi above) and installs
 # all tools. Rust compilation is the slowest step — expect several minutes.
@@ -191,14 +200,14 @@ ok "mise toolchain installed"
 eval "$("$HOME/.local/bin/mise" activate bash)"
 
 # ---------------------------------------------------------------------------
-# 8. Generate age key
+# 9. Generate age key
 #
 # age is now installed via mise so the binary is available.
 # Each VM gets its own age key for secrets management — allows tracking
 # which key belongs to which machine.
 # Skipped if a key already exists (e.g. on a cloned VM).
-# After bootstrap completes, the public key is printed — add it to your
-# chezmoi config as an additional recipient so this VM can decrypt secrets.
+# After generation, the public key is added to the chezmoi config as a
+# recipient so this VM can both decrypt and encrypt secrets.
 # ---------------------------------------------------------------------------
 
 AGE_KEY="$HOME/.config/age/key.txt"
@@ -215,19 +224,29 @@ fi
 
 AGE_PUBLIC_KEY=$(grep "public key:" "$AGE_KEY" | awk '{print $NF}')
 
+# Add the recipient to the chezmoi config so this VM can encrypt secrets
+# Only add if not already present (idempotent)
+if ! grep -q "recipient" "$CHEZMOI_CONFIG"; then
+  info "Adding age recipient to chezmoi config"
+  cat >> "$CHEZMOI_CONFIG" <<EOF
+
+[age]
+    identity = "~/.config/age/key.txt"
+    recipient = "$AGE_PUBLIC_KEY"
+EOF
+  ok "age recipient added to chezmoi config"
+fi
+
 # ---------------------------------------------------------------------------
-# 9. [OPTIONAL] Set zsh as default shell
-#
-# Uncomment to set zsh as default automatically.
-# Requires a logout/login to take effect.
+# 10. Set zsh as default shell
 # ---------------------------------------------------------------------------
 
-# info "Setting zsh as default shell"
-# chsh -s "$(which zsh)"
-# ok "Default shell set to zsh — log out and back in to activate"
+info "Setting zsh as default shell"
+chsh -s "$(which zsh)"
+ok "Default shell set to zsh — log out and back in to activate"
 
 # ---------------------------------------------------------------------------
-# 10. Verify key tools
+# 11. Verify key tools
 # ---------------------------------------------------------------------------
 
 info "Verifying key tools"
@@ -246,7 +265,7 @@ TOOLS=(
   "gh"
   "just"
   "starship"
-  "ripgrep"
+  "rg"
   "fd"
   "bat"
   "eza"
@@ -276,21 +295,7 @@ else
 fi
 
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ACTION REQUIRED: Add this VM's age public key to your chezmoi config"
-echo "  so this machine can decrypt dotfile secrets."
-echo ""
-echo "  Public key: $AGE_PUBLIC_KEY"
-echo ""
-echo "  Add it to .chezmoi.toml.tmpl as an additional recipient:"
-echo "  recipients = [\"<your-main-key>\", \"$AGE_PUBLIC_KEY\"]"
-echo ""
-echo "  Then re-encrypt your secrets and push to the dotfiles repo."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
 echo "Next steps:"
-echo "  - Add the age public key above to your chezmoi config"
-echo "  - Start a new zsh session to activate the full environment"
+echo "  - Log out and back in to activate zsh as your default shell"
 echo "  - Run 'mise doctor' to verify the mise setup"
 echo "  - Run 'chezmoi status' to check for any unapplied changes"
-echo "  - Optionally uncomment the chsh line above to set zsh as default shell"
