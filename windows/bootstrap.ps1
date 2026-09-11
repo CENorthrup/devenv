@@ -97,7 +97,7 @@ function Install-UbuntuWsl {
         Write-Host "$Distribution is already installed."
         return
     }
-    wsl.exe --install --distribution $Distribution
+    wsl.exe --install --distribution $Distribution --no-launch
     if ($LASTEXITCODE -ne 0) { throw 'WSL installation did not complete. Restart Windows if prompted, then rerun this script.' }
     Write-Host "Launch $Distribution once to create its Linux user, then run wsl/bootstrap.sh from the repository."
 }
@@ -122,3 +122,4 @@ if ($Action -in @('PrepareWindows', 'All')) {
 }
 if ($Action -in @('InstallWsl', 'All')) { Install-UbuntuWsl }
 if ($Action -in @('Check', 'All')) { Test-Setup }
+
