@@ -122,4 +122,3 @@ if ($Action -in @('PrepareWindows', 'All')) {
 }
 if ($Action -in @('InstallWsl', 'All')) { Install-UbuntuWsl }
 if ($Action -in @('Check', 'All')) { Test-Setup }
-
