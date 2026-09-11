@@ -19,6 +19,11 @@ The bootstrap installs and configures:
 - eza, bat, fd, ripgrep, fzf, Yazi 26.9.1, and tmux
 - Neovim 0.11.6 with the checked-in basic LazyVim lock
 
+The Zsh profile loads Prezto modules and the familiar aliases from the dotfiles
+profile. Its vi insert mode uses `jk` to return to normal mode, and the WezTerm tab
+title shows the current directory followed by `[INSERT]` or `[NORMAL]`. LazyVim
+uses the same `jk` insert-mode escape mapping.
+
 System packages come from Ubuntu 26.04. Chezmoi, Yazi, Prezto, lazy.nvim, and the
 LazyVim plugin set use recorded versions or commits. Release archives are checked
 against recorded or publisher-supplied SHA256 values. Authentication remains a
@@ -30,6 +35,8 @@ Differing managed configuration or pinned versions stop with an error for review
 On first configuration, existing Zsh and Neovim destinations are copied under
 `~/.local/state/devenv-shell/backup.*` before application. The selected login shell
 becomes `/usr/bin/zsh`.
+The current bootstrap process cannot replace its parent shell; after it finishes,
+open a new terminal or run `exec zsh -l` to enter the configured shell immediately.
 
 ## Staged operations
 

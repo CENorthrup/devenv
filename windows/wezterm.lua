@@ -14,4 +14,7 @@ config.window_padding = {
   bottom = 8,
 }
 
+-- Zsh sets the pane title to "<directory> [INSERT|NORMAL]". WezTerm uses
+-- that pane title for the tab, keeping the shell's vi mode visible.
+
 return config

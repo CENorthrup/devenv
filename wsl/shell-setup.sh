@@ -107,7 +107,26 @@ case "$action" in
     }
     ;;
   check)
-    zsh -lic 'for tool in git ssh chezmoi zsh starship eza bat fd rg fzf yazi nvim tmux; do command -v $tool || exit 1; done; [[ -n $ZPREZTODIR && -f $ZPREZTODIR/init.zsh ]] || exit 1; alias ls; alias cat; bindkey -M viins jk'
+    zsh -lic '
+      for tool in git ssh chezmoi zsh starship eza bat fd rg fzf yazi nvim tmux; do
+        command -v $tool || exit 1
+      done
+      [[ -n $ZPREZTODIR && -f $ZPREZTODIR/init.zsh ]] || exit 1
+      typeset -a devenv_pmodules
+      zstyle -a ":prezto:load" pmodule devenv_pmodules || exit 1
+      (( ${devenv_pmodules[(I)autosuggestions]} )) || exit 1
+      (( ${devenv_pmodules[(I)syntax-highlighting]} )) || exit 1
+      [[ -n ${functions[_zsh_autosuggest_start]} ]] || exit 1
+      [[ -n ${functions[_zsh_highlight]} ]] || exit 1
+      [[ -n ${functions[_devenv_mode_title]} ]] || exit 1
+      for name in vim cat gg gl dd ls lsa zshrc sozsh; do
+        alias "$name" >/dev/null || exit 1
+      done
+      alias ls
+      alias cat
+      bindkey -M viins jk
+    '
+    nvim --headless '+doautocmd User VeryLazy' '+lua local mapping = vim.fn.maparg("jk", "i", false, true); assert(mapping.rhs == "<Esc>")' +qa
     output=$(nvim --headless '+lua assert(vim.fn.exists(":Lazy") == 2)' +qa 2>&1) || {
       printf '%s\n' "$output" >&2
       fail 'Neovim startup check failed.'

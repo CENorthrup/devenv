@@ -19,12 +19,24 @@ setopt HIST_IGNORE_DUPS HIST_REDUCE_BLANKS SHARE_HISTORY
 bindkey -v
 bindkey -M viins 'jk' vi-cmd-mode
 KEYTIMEOUT=15
-(( $+commands[nvim] )) && alias vim=nvim
-(( $+commands[bat] )) && alias cat=bat
-(( $+commands[eza] )) && alias ls=eza lsa='eza -halF --git --git-repos-no-status --no-user --no-time --group-directories-last'
-(( $+commands[lazygit] )) && alias gg=lazygit
-(( $+commands[lazydocker] )) && alias dd=lazydocker
+
+# Show the current vi editing mode in the WezTerm tab title.
+function _devenv_mode_title() {
+  local mode=INSERT
+  [[ ${KEYMAP:-main} == vicmd ]] && mode=NORMAL
+  print -Pn -- "\e]2;%1~ [$mode]\a"
+}
+autoload -Uz add-zle-hook-widget
+add-zle-hook-widget zle-keymap-select _devenv_mode_title
+add-zle-hook-widget zle-line-init _devenv_mode_title
+
+alias vim=nvim
+alias cat=bat
+alias gg=lazygit
 alias gl='git log --oneline'
+alias dd=lazydocker
+alias ls=eza
+alias lsa='eza -halF --git --git-repos-no-status --no-user --no-time --group-directories-last'
 alias zshrc='${EDITOR:-vi} "$ZDOTDIR/.zshrc"'
 alias sozsh='source "$ZDOTDIR/.zshrc"'
 function y() {

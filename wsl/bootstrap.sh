@@ -24,4 +24,4 @@ if [[ $(getent passwd "$USER" | cut -d: -f7) != /usr/bin/zsh ]]; then
 fi
 
 bash "$root/shell-setup.sh" check
-printf '\nThin WSL client is ready. Close this window and open a new shell.\n'
+printf '\nThin WSL client is ready. Open a new terminal, or run `exec zsh -l` to initialize Prezto in this window.\n'

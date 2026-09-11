@@ -11,7 +11,8 @@ The script is rerunnable and does not require winget. It preserves the recorded
 WezTerm release when already installed, verifies downloaded installers and fonts,
 installs FiraCode Nerd Font for the current Windows user, backs up a differing
 `~/.wezterm.lua`, and configures WezTerm to open Ubuntu WSL with the Nerd Font and
-Tokyo Night colors.
+Tokyo Night colors. The configured Zsh session supplies its current vi editing
+mode in the WezTerm tab title.
 
 `-Action InstallWsl` calls the supported Windows WSL installer only when the named
 distribution is absent. That operation may require an elevated PowerShell window,
