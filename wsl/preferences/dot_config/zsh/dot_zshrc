@@ -1,0 +1,49 @@
+# Shared navigation shell for the thin client.
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+typeset -U path
+path=("$HOME/.local/bin" $path)
+mkdir -p "$XDG_STATE_HOME/zsh" "$XDG_CACHE_HOME/zsh"
+HISTFILE="$XDG_STATE_HOME/zsh/history"
+HISTSIZE=10000
+SAVEHIST=10000
+if [[ -s "$ZPREZTODIR/init.zsh" ]]; then source "$ZPREZTODIR/init.zsh"; fi
+setopt HIST_IGNORE_DUPS HIST_REDUCE_BLANKS SHARE_HISTORY
+(( $+commands[nvim] )) && export EDITOR=nvim VISUAL=nvim
+(( $+commands[mise] )) && eval "$(mise activate zsh)"
+(( $+commands[direnv] )) && eval "$(direnv hook zsh)"
+(( $+commands[fzf] )) && source <(fzf --zsh)
+(( $+commands[starship] )) && eval "$(starship init zsh)"
+bindkey -v
+bindkey -M viins 'jk' vi-cmd-mode
+KEYTIMEOUT=15
+
+# Show the current vi editing mode in the WezTerm tab title.
+function _devenv_mode_title() {
+  local mode=INSERT
+  [[ ${KEYMAP:-main} == vicmd ]] && mode=NORMAL
+  print -Pn -- "\e]2;%1~ [$mode]\a"
+}
+autoload -Uz add-zle-hook-widget
+add-zle-hook-widget zle-keymap-select _devenv_mode_title
+add-zle-hook-widget zle-line-init _devenv_mode_title
+
+alias vim=nvim
+alias cat=bat
+alias gg=lazygit
+alias gl='git log --oneline'
+alias dd=lazydocker
+alias ls=eza
+alias lsa='eza -halF --git --git-repos-no-status --no-user --no-time --group-directories-last'
+alias zshrc='${EDITOR:-vi} "$ZDOTDIR/.zshrc"'
+alias sozsh='source "$ZDOTDIR/.zshrc"'
+function y() {
+  local tmp="$(mktemp -t yazi-cwd.XXXXXX)" cwd
+  yazi "$@" --cwd-file="$tmp"
+  if cwd="$(command cat -- "$tmp")" && [[ -n "$cwd" && "$cwd" != "$PWD" ]]; then
+    builtin cd -- "$cwd"
+  fi
+  rm -f -- "$tmp"
+}
