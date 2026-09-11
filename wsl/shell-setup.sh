@@ -126,7 +126,7 @@ case "$action" in
       alias cat
       bindkey -M viins jk
     '
-    nvim --headless '+doautocmd User VeryLazy' '+lua local mapping = vim.fn.maparg("jk", "i", false, true); assert(mapping.rhs == "<Esc>")' +qa
+    nvim --headless -u NONE '+luafile ~/.config/nvim/lua/config/keymaps.lua' '+lua local mapping = vim.fn.maparg("jk", "i", false, true); assert(mapping.rhs == "<Esc>")' +qa
     output=$(nvim --headless '+lua assert(vim.fn.exists(":Lazy") == 2)' +qa 2>&1) || {
       printf '%s\n' "$output" >&2
       fail 'Neovim startup check failed.'
