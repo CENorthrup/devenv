@@ -122,3 +122,5 @@ if ($Action -in @('PrepareWindows', 'All')) {
 }
 if ($Action -in @('InstallWsl', 'All')) { Install-UbuntuWsl }
 if ($Action -in @('Check', 'All')) { Test-Setup }
+
+Write-Host "`nSetup finished successfully. You can close this PowerShell window."
