@@ -83,19 +83,40 @@ case "$action" in
     elif [[ $(git -C "$lazy" rev-parse HEAD) != "$lazy_revision" ]]; then
       fail 'Existing lazy.nvim version differs; review before upgrading.'
     fi
+    lazyvim="$HOME/.local/share/nvim/lazy/LazyVim/lua/lazyvim/init.lua"
+    snacks="$HOME/.local/share/nvim/lazy/snacks.nvim/lua/snacks/init.lua"
+    if [[ ! -f $lazyvim || ! -f $snacks ]]; then
+      rm -f -- "$editor_marker"
+    fi
     if [[ ! -e $editor_marker ]]; then
-      if ! nvim --headless '+lua assert(vim.fn.exists(":Lazy") == 2)' +qa >/dev/null 2>&1; then
-        DEVENV_EDITOR_INSTALL=1 nvim --headless '+Lazy! restore' +qa
-      fi
+      # The first pass installs LazyVim itself; the second can then load its
+      # imported specifications and restore the complete locked plugin set.
+      DEVENV_EDITOR_INSTALL=1 nvim --headless '+Lazy! restore' +qa || true
+      DEVENV_EDITOR_INSTALL=1 nvim --headless '+Lazy! restore' +qa
+      [[ -f $lazyvim && -f $snacks ]] || fail 'LazyVim plugin installation is incomplete.'
       mkdir -p "$(dirname "$editor_marker")"
       touch "$editor_marker"
-    else
-      nvim --headless '+lua assert(vim.fn.exists(":Lazy") == 2)' +qa
     fi
+    output=$(nvim --headless '+lua assert(vim.fn.exists(":Lazy") == 2)' +qa 2>&1) || {
+      printf '%s\n' "$output" >&2
+      fail 'Neovim startup check failed.'
+    }
+    [[ $output != *'Error detected'* && $output != *'not installed'* ]] || {
+      printf '%s\n' "$output" >&2
+      fail 'Neovim reported an incomplete plugin setup.'
+    }
     ;;
   check)
     zsh -lic 'for tool in git ssh chezmoi zsh starship eza bat fd rg fzf yazi nvim tmux; do command -v $tool || exit 1; done; [[ -n $ZPREZTODIR && -f $ZPREZTODIR/init.zsh ]] || exit 1; alias ls; alias cat; bindkey -M viins jk'
-    nvim --headless '+lua assert(vim.fn.exists(":Lazy") == 2)' +qa
+    output=$(nvim --headless '+lua assert(vim.fn.exists(":Lazy") == 2)' +qa 2>&1) || {
+      printf '%s\n' "$output" >&2
+      fail 'Neovim startup check failed.'
+    }
+    [[ $output != *'Error detected'* && $output != *'not installed'* ]] || {
+      printf '%s\n' "$output" >&2
+      fail 'Neovim reported an incomplete plugin setup.'
+    }
     ;;
   *) echo 'Usage: bash wsl/shell-setup.sh {packages|user-install|configure|editor-install|check}' ;;
 esac
+
