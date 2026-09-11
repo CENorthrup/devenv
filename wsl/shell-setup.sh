@@ -119,4 +119,3 @@ case "$action" in
     ;;
   *) echo 'Usage: bash wsl/shell-setup.sh {packages|user-install|configure|editor-install|check}' ;;
 esac
-
