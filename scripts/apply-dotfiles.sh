@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Keep managed permissions consistent across sudo, SSH, and login shells.
+umask 022
 
 action=${1:-configure}
 source_dir=${2:-${DEVENV_DOTFILES_SOURCE:-$HOME/projects/dotfiles}}
