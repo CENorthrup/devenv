@@ -1,7 +1,7 @@
 # Minimal remote core: implementation and acceptance plan
 
-Status: preparation only. No remote image or core target has been accepted.
-The inventory collector is usable independently; the bootstrap below is proposed.
+Status: implemented and accepted on `dev-core-candidate`; reusable template
+designation remains pending. See [ACCEPTANCE.md](ACCEPTANCE.md).
 
 ## Establish access and select the image
 
@@ -50,12 +50,14 @@ been checked. Capture sudo capability separately without requesting a password.
 | Core recipe | Target composition, inventory reconciliation, role selection, checks, diagnostic output and template evidence |
 | Project profile | Runtimes, dependencies, language servers, formatters, debuggers and editor language extras; deferred |
 
-Retain Phase 1 pins as initial candidates for shared tools. Verify their release
+Retain Phase 1 pins as shared tools. Verify their release
 artifacts and platform requirements on the selected VM. Record an explicit
 owner/version/path decision for each preinstalled core tool: reuse, supply a
 missing tool, or propose a deliberate replacement. Do not install a second gh,
 Neovim or ripgrep silently. Reproducibility includes recording inherited image
-versions, not only mise pins. New gh/LazyGit/Diffview pins await that decision.
+versions, not only mise pins. The accepted additions are GitHub CLI 2.100.0,
+LazyGit 0.65.0, and Diffview commit
+`4516612fe98ff56ae0415a259ff6361a89419b0a`.
 
 ## Implementation sequence
 
@@ -98,8 +100,8 @@ versions, not only mise pins. New gh/LazyGit/Diffview pins await that decision.
 
 ## Acceptance on the real VM
 
-All items below are pending. Local syntax checks do not satisfy remote acceptance.
-Run mutations only after approval for the specified disposable VM and recipe.
+The checks below were run on the disposable candidate. Detailed evidence and
+recorded revisions are in [ACCEPTANCE.md](ACCEPTANCE.md).
 
 | Check | Required evidence |
 | --- | --- |
