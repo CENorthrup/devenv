@@ -57,12 +57,15 @@ targets=(
 )
 
 configuration_diff() {
-  local managed=() path
+  local managed=() managed_list path
+  managed_list=$(mktemp "$state_dir/managed.XXXXXXXX")
+  chezmoi "${chezmoi_args[@]}" managed > "$managed_list"
   while IFS= read -r path; do
     case $path in
       .zshenv|.config/zsh/*|.config/nvim/*) managed+=("$HOME/$path") ;;
     esac
-  done < <(chezmoi "${chezmoi_args[@]}" managed)
+  done < "$managed_list"
+  rm -f -- "$managed_list"
   ((${#managed[@]})) || { printf 'No managed shell or Neovim files found.\n' >&2; return 1; }
   chezmoi "${chezmoi_args[@]}" diff --no-pager -- "${managed[@]}"
 }
