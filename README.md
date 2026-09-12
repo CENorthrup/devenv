@@ -42,7 +42,9 @@ distribution or execution-context adapter.
 The existing [`exedev/`](exedev/) scripts are retained while Phase 2 separates the
 common remote workspace from Python and React/Node stack profiles. Do not run the
 historical VM bootstrap unchanged until it has been reconciled with the current
-plan.
+plan. See the [minimal core implementation and acceptance plan](exedev/core/PLAN.md)
+and [read-only inventory collector](exedev/core/inventory.sh). A remote core target
+is not implemented or accepted yet.
 
 ## Repository roles
 

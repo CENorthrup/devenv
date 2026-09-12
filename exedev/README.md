@@ -1,5 +1,12 @@
 # exe.dev Dev VM Bootstrap
 
+> **Historical instructions; do not run this bootstrap.** The current work is
+> documented in [the minimal core plan](core/PLAN.md). Start with its read-only
+> [inventory collector](core/inventory.sh). The script below installs a broad
+> toolchain and creates credentials; it has not been reconciled with the core.
+> The old claim that VM SSH access requires no key is incorrect; consult the
+> current [SSH key documentation](https://exe.dev/docs/faq/ssh-key).
+
 Bootstrap script for spinning up a headless Linux dev environment on [exe.dev](https://exe.dev).
 
 This script is scoped to **exedev-dev** VMs. Separate bootstrap scripts exist for other VM types (e.g. exedev-server).
