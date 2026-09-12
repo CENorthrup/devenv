@@ -3,19 +3,21 @@ set -euo pipefail
 
 action=${1:-configure}
 source_dir=${2:-${DEVENV_DOTFILES_SOURCE:-$HOME/projects/dotfiles}}
+role=${DEVENV_DOTFILES_ROLE:-thin}
 state_dir="$HOME/.local/state/devenv-dotfiles"
 config_file="$state_dir/chezmoi.toml"
-marker="$state_dir/thin-configured"
+marker="$state_dir/$role-configured"
 
 case $action in
   configure|apply|check) ;;
   *) printf 'Usage: %s {configure|apply|check} [dotfiles-source]\n' "$0" >&2; exit 1 ;;
 esac
+[[ $role == thin || $role == core ]] || { printf 'Unsupported dotfiles role: %s\n' "$role" >&2; exit 1; }
 
 [[ -d $source_dir ]] || {
   printf 'Dotfiles checkout not found: %s\n' "$source_dir" >&2
   printf 'Clone the private dotfiles repository there, then run:\n' >&2
-  printf '  %s\n' '~/.local/bin/mise -E thin exec -- just apply-dotfiles' >&2
+  printf '  ~/.local/bin/mise -E %s exec -- just apply-dotfiles\n' "$role" >&2
   exit 2
 }
 
@@ -29,10 +31,19 @@ for file in "${required[@]}"; do
 done
 
 mkdir -p "$state_dir" "$HOME/.config"
-cat > "$config_file" <<'EOF'
+expected_config=$(mktemp "$state_dir/chezmoi.expected.XXXXXXXX")
+trap 'rm -f -- "$expected_config"' EXIT
+cat > "$expected_config" <<EOF
 [data]
-    devenvRole = "thin"
+    devenvRole = "$role"
 EOF
+
+for other in thin core; do
+  [[ $other == "$role" || ! -e $state_dir/$other-configured ]] || {
+    printf 'Dotfiles were already applied for the %s role.\n' "$other" >&2
+    exit 1
+  }
+done
 
 chezmoi_args=(
   --config "$config_file"
@@ -62,15 +73,29 @@ backup_destinations() {
 }
 
 if [[ $action == check ]]; then
-  [[ -e $marker ]] || { printf 'Thin dotfiles have not been applied.\n' >&2; exit 1; }
+  [[ -e $marker ]] || { printf '%s dotfiles have not been applied.\n' "$role" >&2; exit 1; }
+  [[ -f $config_file ]] && cmp -s "$expected_config" "$config_file" || {
+    printf 'Chezmoi role configuration differs from %s.\n' "$role" >&2
+    exit 1
+  }
   [[ -z $(configuration_diff) ]] || {
     printf 'Managed shell or Neovim configuration differs from dotfiles.\n' >&2
     exit 1
   }
+  if git -C "$source_dir" rev-parse HEAD >/dev/null 2>&1; then
+    [[ $(<"$marker") == "$(git -C "$source_dir" rev-parse HEAD)" ]] || {
+      printf 'Applied dotfiles revision differs from the checkout.\n' >&2
+      exit 1
+    }
+  fi
   exit
 fi
 
 if [[ $action == configure && -e $marker ]]; then
+  [[ -f $config_file ]] && cmp -s "$expected_config" "$config_file" || {
+    printf 'Chezmoi role configuration differs from %s.\n' "$role" >&2
+    exit 1
+  }
   [[ -z $(configuration_diff) ]] || {
     printf 'Managed shell or Neovim configuration differs from dotfiles.\n' >&2
     printf 'Review the diff, then run `just apply-role`.\n' >&2
@@ -78,6 +103,7 @@ if [[ $action == configure && -e $marker ]]; then
   }
 else
   backup_destinations
+  install -m 600 "$expected_config" "$config_file"
   chezmoi "${chezmoi_args[@]}" apply --force -- "${targets[@]}"
   if git -C "$source_dir" rev-parse HEAD >/dev/null 2>&1; then
     git -C "$source_dir" rev-parse HEAD > "$marker"
