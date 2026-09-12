@@ -7,22 +7,19 @@ default:
 bootstrap target="wsl-ubuntu-thin":
     bash bootstrap/unix.sh "{{target}}"
 
-# Apply the private shell and editor preferences after cloning dotfiles.
-apply-dotfiles source="$HOME/projects/dotfiles":
-    DEVENV_DOTFILES_SOURCE="{{source}}" "$HOME/.local/bin/mise" -E thin exec -- bash roles/thin/configure.sh configure
-    DEVENV_DOTFILES_SOURCE="{{source}}" "$HOME/.local/bin/mise" -E thin exec -- bash scripts/check-target.sh wsl-ubuntu-thin
+# Apply private shell and editor preferences for the selected target.
+apply-dotfiles target="wsl-ubuntu-thin" source="$HOME/projects/dotfiles":
+    role=$$(case "{{target}}" in wsl-ubuntu-thin) echo thin;; exedev-ubuntu-core) echo core;; *) exit 1;; esac); DEVENV_DOTFILES_ROLE="$$role" DEVENV_DOTFILES_SOURCE="{{source}}" bash "roles/$$role/configure.sh" configure
+    bash scripts/check-target.sh "{{target}}"
 
 # Apply an intentional update to the selected role configuration.
 apply-role target="wsl-ubuntu-thin":
-    test "{{target}}" = "wsl-ubuntu-thin"
-    "$HOME/.local/bin/mise" -E thin exec -- bash roles/thin/configure.sh apply
+    role=$$(case "{{target}}" in wsl-ubuntu-thin) echo thin;; exedev-ubuntu-core) echo core;; *) exit 1;; esac); DEVENV_DOTFILES_ROLE="$$role" bash "roles/$$role/configure.sh" apply
 
 # Verify the selected target without upgrading it.
 check target="wsl-ubuntu-thin":
-    test "{{target}}" = "wsl-ubuntu-thin"
-    "$HOME/.local/bin/mise" -E thin exec -- bash scripts/check-target.sh "{{target}}"
+    bash scripts/check-target.sh "{{target}}"
 
 # Report active versions, configuration sources, role, and drift.
 doctor target="wsl-ubuntu-thin":
-    test "{{target}}" = "wsl-ubuntu-thin"
-    "$HOME/.local/bin/mise" -E thin exec -- bash scripts/doctor.sh "{{target}}"
+    bash scripts/doctor.sh "{{target}}"
