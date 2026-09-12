@@ -26,6 +26,6 @@ else
 fi
 bash "$root/scripts/shell-editor-setup.sh" editor-install
 
-if [[ $(getent passwd "$USER" | cut -d: -f7) != /usr/bin/zsh ]]; then
+if [[ ${DEVENV_SKIP_SHELL_CHANGE:-0} != 1 && $(getent passwd "$USER" | cut -d: -f7) != /usr/bin/zsh ]]; then
   sudo usermod --shell /usr/bin/zsh "$USER"
 fi
