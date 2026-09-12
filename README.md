@@ -11,12 +11,31 @@ infrastructure.
 
 1. Run [`windows/bootstrap.ps1`](windows/bootstrap.ps1) from PowerShell.
 2. Complete the first Ubuntu launch and create the Linux user if prompted.
-3. From Ubuntu, run `bash wsl/bootstrap.sh` in this repository.
-4. Authenticate GitHub explicitly, then clone working repositories into the Linux
-   filesystem.
+3. Clone this repository to `~/projects/devenv`.
+4. From Ubuntu, run `bash bootstrap/unix.sh wsl-ubuntu-thin` in this repository.
+5. Authenticate GitHub, clone the private dotfiles repository to
+   `~/projects/dotfiles`, and run
+   `~/.local/bin/mise -E thin exec -- just apply-dotfiles` once.
+6. Open a new terminal, then run `just check` and `just doctor` from this
+   repository.
 
-See [`wsl/README.md`](wsl/README.md) for the installed tools, staged operations,
-safe-rerun behavior, tests, and acceptance checks.
+The first run installs pinned mise and just versions. After that, `just` is the
+human-facing interface for bootstrap, verification, diagnostics, and deliberate
+configuration application. See [`wsl/README.md`](wsl/README.md) for the installed
+tools, safe-rerun behavior, tests, and acceptance checks.
+
+## Composition
+
+The current target combines these independently maintained layers:
+
+- `os/linux/distros/ubuntu/`: Ubuntu-native prerequisites
+- `contexts/wsl/`: WSL-specific validation
+- `roles/thin/`: thin-client configuration
+- `mise/`: pinned core and thin-role portable tools
+- `targets/wsl-ubuntu-thin.toml`: the selected layer combination
+
+Future targets can reuse the Linux, role, and mise layers while replacing only the
+distribution or execution-context adapter.
 
 ## exe.dev
 
@@ -29,8 +48,8 @@ plan.
 
 - This repository owns machine installation, verification, VM profiles, and
   environment planning records.
-- The private dotfiles repository owns personal shell, editor, and terminal
-  preferences once its local and remote selections are separated.
+- The private dotfiles repository owns personal shell and editor preferences.
+  Windows WezTerm preferences remain here until its shared module is separated.
 - Project repositories own dependencies, runtime constraints, locks, and build and
   test commands.
 

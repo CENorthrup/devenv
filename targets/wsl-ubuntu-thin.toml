@@ -1,0 +1,7 @@
+os = "linux"
+distribution = "ubuntu"
+distribution_version = "26.04"
+context = "wsl"
+role = "thin"
+mise_environments = ["thin"]
+dotfiles_role = "thin"
