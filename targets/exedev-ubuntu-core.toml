@@ -1,0 +1,7 @@
+os = "linux"
+distribution = "ubuntu"
+distribution_version = "24.04"
+context = "exedev"
+role = "core"
+mise_environments = ["core"]
+dotfiles_role = "core"

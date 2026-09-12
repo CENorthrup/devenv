@@ -34,15 +34,22 @@ The current target combines these independently maintained layers:
 - `mise/`: pinned core and thin-role portable tools
 - `targets/wsl-ubuntu-thin.toml`: the selected layer combination
 
-Future targets can reuse the Linux, role, and mise layers while replacing only the
-distribution or execution-context adapter.
+The remote target reuses the role, framework, and mise layers while retaining a
+separate Ubuntu 24.04 and exe.dev context guard.
 
 ## exe.dev
 
-The existing [`exedev/`](exedev/) scripts are retained while Phase 2 separates the
-common remote workspace from Python and React/Node stack profiles. Do not run the
-historical VM bootstrap unchanged until it has been reconciled with the current
-plan.
+The `exedev-ubuntu-core` target provides the common remote workspace on a plain
+Ubuntu 24.04 exe.dev VM. It installs the shared shell/editor, GitHub CLI,
+LazyGit, Diffview, and persistent tmux sessions without a language stack. Run
+[`exedev/core/bootstrap.sh`](exedev/core/bootstrap.sh) as root from a checkout
+that the future `exedev` user can read. The entry point creates that unprivileged
+user, clones the private dotfiles repository through the VM's scoped integration,
+and delegates to the shared target bootstrap.
+
+See the [core operating guide](exedev/README.md), [implementation plan](exedev/core/PLAN.md),
+and [candidate acceptance record](exedev/core/ACCEPTANCE.md). The tested VM is a
+working candidate; it has not been designated as a reusable template.
 
 ## Repository roles
 
