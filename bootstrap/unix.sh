@@ -25,7 +25,8 @@ configure_status=$?
 set -e
 if [[ $configure_status == 2 ]]; then
   printf '\nCore tools are ready. Clone the private dotfiles repository to\n'
-  printf '%s, then run `just apply-dotfiles`.\n' "$HOME/projects/dotfiles"
+  printf '%s, then run:\n' "$HOME/projects/dotfiles"
+  printf '  %s\n' '~/.local/bin/mise -E thin exec -- just apply-dotfiles'
   exit 0
 fi
 [[ $configure_status == 0 ]] || exit "$configure_status"

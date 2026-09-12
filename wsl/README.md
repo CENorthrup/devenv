@@ -18,7 +18,7 @@ available yet, it stops at a successful resume point and prints the next action:
 ```bash
 mkdir -p ~/projects
 git clone <private-dotfiles-url> ~/projects/dotfiles
-just apply-dotfiles
+~/.local/bin/mise -E thin exec -- just apply-dotfiles
 exec zsh -l
 just check
 just doctor

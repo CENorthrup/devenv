@@ -14,7 +14,8 @@ infrastructure.
 3. Clone this repository to `~/projects/devenv`.
 4. From Ubuntu, run `bash bootstrap/unix.sh wsl-ubuntu-thin` in this repository.
 5. Authenticate GitHub, clone the private dotfiles repository to
-   `~/projects/dotfiles`, and run `just apply-dotfiles`.
+   `~/projects/dotfiles`, and run
+   `~/.local/bin/mise -E thin exec -- just apply-dotfiles` once.
 6. Open a new terminal, then run `just check` and `just doctor` from this
    repository.
 

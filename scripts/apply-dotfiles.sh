@@ -14,7 +14,8 @@ esac
 
 [[ -d $source_dir ]] || {
   printf 'Dotfiles checkout not found: %s\n' "$source_dir" >&2
-  printf 'Clone the private dotfiles repository there, then run `just apply-dotfiles`.\n' >&2
+  printf 'Clone the private dotfiles repository there, then run:\n' >&2
+  printf '  %s\n' '~/.local/bin/mise -E thin exec -- just apply-dotfiles' >&2
   exit 2
 }
 
