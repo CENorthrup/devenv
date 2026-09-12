@@ -1,4 +1,6 @@
 *.sh text eol=lf
 *.ps1 text eol=crlf
 *.lua text eol=lf
+*.toml text eol=lf
 *.md text
+Justfile text eol=lf

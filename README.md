@@ -11,12 +11,27 @@ infrastructure.
 
 1. Run [`windows/bootstrap.ps1`](windows/bootstrap.ps1) from PowerShell.
 2. Complete the first Ubuntu launch and create the Linux user if prompted.
-3. From Ubuntu, run `bash wsl/bootstrap.sh` in this repository.
+3. From Ubuntu, run `bash bootstrap/unix.sh wsl-ubuntu-thin` in this repository.
 4. Authenticate GitHub explicitly, then clone working repositories into the Linux
    filesystem.
 
-See [`wsl/README.md`](wsl/README.md) for the installed tools, staged operations,
-safe-rerun behavior, tests, and acceptance checks.
+The first run installs pinned mise and just versions. After that, `just` is the
+human-facing interface for bootstrap, verification, diagnostics, and deliberate
+configuration application. See [`wsl/README.md`](wsl/README.md) for the installed
+tools, safe-rerun behavior, tests, and acceptance checks.
+
+## Composition
+
+The current target combines these independently maintained layers:
+
+- `os/linux/distros/ubuntu/`: Ubuntu-native prerequisites
+- `contexts/wsl/`: WSL-specific validation
+- `roles/thin/`: thin-client configuration
+- `mise/`: pinned core and thin-role portable tools
+- `targets/wsl-ubuntu-thin.toml`: the selected layer combination
+
+Future targets can reuse the Linux, role, and mise layers while replacing only the
+distribution or execution-context adapter.
 
 ## exe.dev
 
