@@ -57,7 +57,14 @@ targets=(
 )
 
 configuration_diff() {
-  chezmoi "${chezmoi_args[@]}" diff --no-pager -- "${targets[@]}"
+  local managed=() path
+  while IFS= read -r path; do
+    case $path in
+      .zshenv|.config/zsh/*|.config/nvim/*) managed+=("$HOME/$path") ;;
+    esac
+  done < <(chezmoi "${chezmoi_args[@]}" managed)
+  ((${#managed[@]})) || { printf 'No managed shell or Neovim files found.\n' >&2; return 1; }
+  chezmoi "${chezmoi_args[@]}" diff --no-pager -- "${managed[@]}"
 }
 
 backup_destinations() {
@@ -78,7 +85,8 @@ if [[ $action == check ]]; then
     printf 'Chezmoi role configuration differs from %s.\n' "$role" >&2
     exit 1
   }
-  [[ -z $(configuration_diff) ]] || {
+  diff_output=$(configuration_diff)
+  [[ -z $diff_output ]] || {
     printf 'Managed shell or Neovim configuration differs from dotfiles.\n' >&2
     exit 1
   }
@@ -96,7 +104,8 @@ if [[ $action == configure && -e $marker ]]; then
     printf 'Chezmoi role configuration differs from %s.\n' "$role" >&2
     exit 1
   }
-  [[ -z $(configuration_diff) ]] || {
+  diff_output=$(configuration_diff)
+  [[ -z $diff_output ]] || {
     printf 'Managed shell or Neovim configuration differs from dotfiles.\n' >&2
     printf 'Review the diff, then run `just apply-role`.\n' >&2
     exit 1
