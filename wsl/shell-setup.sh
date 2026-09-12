@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-chezmoi_config="$root/chezmoi.toml"
 action=${1:-help}
 prezto_revision=cff2d01871425b1b80710f8ec6a475c5a53145b4
 lazy_revision=85c7ff3711b730b4030d03144f6db6375044ae82
@@ -18,33 +16,6 @@ case "$action" in
     else
       [[ $(git -C "$HOME/.config/prezto" rev-parse HEAD) == "$prezto_revision" ]] || fail 'Existing Prezto version differs; review before upgrading.'
       git -C "$HOME/.config/prezto" submodule update --init --recursive
-    fi
-    ;;
-  configure|apply)
-    [[ $EUID != 0 ]] || fail 'Run as the normal user.'
-    # Use only this curated source, never initialize the full workstation dotfiles.
-    # Back up differing destinations before applying; future edits require review.
-    state="$HOME/.local/state/devenv-shell"
-    mkdir -p "$state"
-    chezmoi_args=(--config "$chezmoi_config" --persistent-state "$state/chezmoistate.boltdb" --source "$root/preferences")
-    if [[ $action == configure && -e $state/configured ]]; then
-      diff=$(chezmoi "${chezmoi_args[@]}" diff --exclude=dirs --no-pager)
-      [[ -z $diff ]] || fail 'Configuration differs; review chezmoi diff before reapplying.'
-    else
-      backup=$(mktemp -d "$state/backup.XXXXXXXX")
-      for dest in .zshenv .config/zsh .config/nvim; do
-        if [[ -e $HOME/$dest || -L $HOME/$dest ]]; then
-          mkdir -p "$backup/$(dirname "$dest")"
-          cp -a -- "$HOME/$dest" "$backup/$dest"
-        fi
-      done
-      mkdir -p \
-        "$HOME/.config/zsh" \
-        "$HOME/.config/nvim/lua/config" \
-        "$HOME/.config/nvim/lua/plugins"
-      chezmoi "${chezmoi_args[@]}" apply --exclude=dirs --force
-      touch "$state/configured"
-      [[ $action == configure ]] || rm -f -- "$state/editor-installed"
     fi
     ;;
   editor-install)
@@ -110,5 +81,5 @@ case "$action" in
       fail 'Neovim reported an incomplete plugin setup.'
     }
     ;;
-  *) echo 'Usage: bash wsl/shell-setup.sh {user-install|configure|apply|editor-install|check}' ;;
+  *) echo 'Usage: bash wsl/shell-setup.sh {user-install|editor-install|check}' ;;
 esac

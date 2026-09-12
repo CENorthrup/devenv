@@ -52,6 +52,7 @@ apply_files() {
 mkdir -p "$state_dir" "$config_dir"
 if [[ $action == check ]]; then
   check_files
+  bash "$root/scripts/apply-dotfiles.sh" check
   exit
 fi
 
@@ -64,12 +65,12 @@ else
   }
 fi
 
-# Transitional personal configuration. This moves to the dotfiles repository next.
+# Install frameworks here; personal shell and editor files come from dotfiles.
 bash "$root/wsl/shell-setup.sh" user-install
 if [[ $action == apply ]]; then
-  bash "$root/wsl/shell-setup.sh" apply
+  bash "$root/scripts/apply-dotfiles.sh" apply
 else
-  bash "$root/wsl/shell-setup.sh" configure
+  bash "$root/scripts/apply-dotfiles.sh" configure
 fi
 bash "$root/wsl/shell-setup.sh" editor-install
 

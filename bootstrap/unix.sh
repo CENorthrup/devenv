@@ -19,7 +19,16 @@ export MISE_TRUSTED_CONFIG_PATHS="$root"
 cd "$root"
 
 mise -E thin install
+set +e
 mise -E thin exec -- bash "$root/roles/thin/configure.sh" configure
+configure_status=$?
+set -e
+if [[ $configure_status == 2 ]]; then
+  printf '\nCore tools are ready. Clone the private dotfiles repository to\n'
+  printf '%s, then run `just apply-dotfiles`.\n' "$HOME/projects/dotfiles"
+  exit 0
+fi
+[[ $configure_status == 0 ]] || exit "$configure_status"
 mise -E thin exec -- bash "$root/scripts/check-target.sh" "$target"
 
 printf '\n%s is ready. Open a new terminal or run `exec zsh -l`.\n' "$target"

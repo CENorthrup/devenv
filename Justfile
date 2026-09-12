@@ -7,6 +7,11 @@ default:
 bootstrap target="wsl-ubuntu-thin":
     bash bootstrap/unix.sh "{{target}}"
 
+# Apply the private shell and editor preferences after cloning dotfiles.
+apply-dotfiles source="$HOME/projects/dotfiles":
+    DEVENV_DOTFILES_SOURCE="{{source}}" "$HOME/.local/bin/mise" -E thin exec -- bash roles/thin/configure.sh configure
+    DEVENV_DOTFILES_SOURCE="{{source}}" "$HOME/.local/bin/mise" -E thin exec -- bash scripts/check-target.sh wsl-ubuntu-thin
+
 # Apply an intentional update to the selected role configuration.
 apply-role target="wsl-ubuntu-thin":
     test "{{target}}" = "wsl-ubuntu-thin"

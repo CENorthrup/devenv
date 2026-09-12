@@ -12,18 +12,34 @@ From an Ubuntu shell, run the complete entry point as the normal Linux user:
 bash bootstrap/unix.sh wsl-ubuntu-thin
 ```
 
+The first run installs the machine tools. If the private dotfiles checkout is not
+available yet, it stops at a successful resume point and prints the next action:
+
+```bash
+mkdir -p ~/projects
+git clone <private-dotfiles-url> ~/projects/dotfiles
+just apply-dotfiles
+exec zsh -l
+just check
+just doctor
+```
+
+GitHub authentication is an explicit prerequisite for the private clone. The
+bootstrap stores no tokens or SSH keys.
+
 The bootstrap installs and configures:
 
 - Ubuntu-native Git, OpenSSH client, curl, and CA certificates
 - mise 2026.7.13 with just 1.58.0 and chezmoi 2.72.1
 - Zsh 5.9, Prezto at the recorded commit, and Starship
 - eza, bat, fd, ripgrep, fzf, Yazi 26.9.1, and tmux
-- Neovim 0.11.6 with the checked-in basic LazyVim lock
+- Neovim 0.11.6 with the basic LazyVim lock from the private dotfiles repository
 
-The Zsh profile loads Prezto modules and the familiar aliases from the dotfiles
-profile. Its vi insert mode uses `jk` to return to normal mode, and the WezTerm tab
-title shows the current directory followed by `[INSERT]` or `[NORMAL]`. LazyVim
-uses the same `jk` insert-mode escape mapping.
+The private dotfiles repository supplies Zsh and Neovim configuration. Zsh loads
+Prezto modules and the familiar aliases in an explicit order. Its vi insert mode
+uses `jk` to return to normal mode, and the WezTerm tab title shows the current
+directory followed by `[INSERT]` or `[NORMAL]`. LazyVim uses the same `jk`
+insert-mode escape mapping.
 
 System prerequisites come from Ubuntu 26.04. Mise installs the pinned portable
 tools from [`../mise/config.toml`](../mise/config.toml) and
@@ -35,8 +51,8 @@ no keys, tokens, GitHub sessions, or remote host entries.
 The bootstrap is safe to rerun. Existing matching installations are preserved.
 Differing managed configuration or pinned versions stop with an error for review.
 On first configuration, existing Zsh and Neovim destinations are copied under
-`~/.local/state/devenv-shell/backup.*` before application. The selected login shell
-becomes `/usr/bin/zsh`.
+`~/.local/state/devenv-dotfiles/backup.*` before application. The selected login
+shell becomes `/usr/bin/zsh`.
 The current bootstrap process cannot replace its parent shell; after it finishes,
 open a new terminal or run `exec zsh -l` to enter the configured shell immediately.
 
@@ -46,11 +62,14 @@ After the first bootstrap, run these from the repository root:
 
 ```bash
 just bootstrap
+just apply-dotfiles
 just check
 just doctor
 ```
 
 `just bootstrap` installs missing pinned tools and preserves matching state.
+`just apply-dotfiles` applies only the thin-client Zsh and Neovim selections from
+`~/projects/dotfiles`.
 `just check` is read-only. `just doctor` reports the selected target, active mise
 configuration and versions, shell, repository revision, and drift. When reviewed
 repository configuration intentionally changes, `just apply-role` backs up the
@@ -71,7 +90,7 @@ before running the Linux bootstrap.
 Run the full fresh-filesystem test inside WSL as root:
 
 ```bash
-sudo bash wsl/test-fresh-ubuntu.sh
+sudo bash wsl/test-fresh-ubuntu.sh ~/projects/dotfiles
 ```
 
 It downloads Ubuntu Base 26.04.1, verifies the image manifest, creates an isolated
@@ -79,8 +98,6 @@ root filesystem and test user, runs the complete bootstrap twice, verifies Zsh a
 the login shell, and removes the temporary filesystem. It changes no packages in
 the real Ubuntu installation. It shares the WSL kernel and therefore does not test
 Windows distribution import, first launch, or graphical terminal interaction.
-
-`test.sh` remains a smaller regression test for the earlier additive Bash bootstrap.
 
 ## Acceptance after a fresh WSL install
 

@@ -4,6 +4,11 @@ set -euo pipefail
 [[ $EUID == 0 ]] || { echo 'This isolated rootfs test requires root.' >&2; exit 1; }
 [[ $(uname -m) == x86_64 ]] || exit 1
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+dotfiles_source=${1:-$HOME/projects/dotfiles}
+[[ -d $dotfiles_source ]] || {
+  printf 'Usage: sudo bash %s /path/to/dotfiles\n' "$0" >&2
+  exit 1
+}
 temp=$(mktemp -d /tmp/devenv-rootfs.XXXXXXXX)
 trap 'rm -rf -- "$temp"' EXIT
 base=https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/release
@@ -15,6 +20,7 @@ mkdir "$temp/rootfs"
 tar -xpf "$temp/$asset" -C "$temp/rootfs"
 cp --remove-destination /etc/resolv.conf "$temp/rootfs/etc/resolv.conf"
 cp -a "$repo_root" "$temp/rootfs/devenv"
+cp -a "$dotfiles_source" "$temp/rootfs/dotfiles"
 cat > "$temp/rootfs/devenv/inside.sh" <<'INSIDE'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
@@ -24,8 +30,8 @@ useradd --create-home --shell /bin/bash tester
 printf 'tester ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/tester
 chmod 440 /etc/sudoers.d/tester
 printf '127.0.0.1 localhost %s\n' "$(hostname)" > /etc/hosts
-su - tester -c 'bash /devenv/bootstrap/unix.sh wsl-ubuntu-thin'
-su - tester -c 'export PATH="$HOME/.local/bin:$PATH"; cd /devenv; mise -E thin exec -- just bootstrap wsl-ubuntu-thin'
+su - tester -c 'DEVENV_DOTFILES_SOURCE=/dotfiles bash /devenv/bootstrap/unix.sh wsl-ubuntu-thin'
+su - tester -c 'export PATH="$HOME/.local/bin:$PATH"; export DEVENV_DOTFILES_SOURCE=/dotfiles; cd /devenv; mise -E thin exec -- just bootstrap wsl-ubuntu-thin'
 test "$(getent passwd tester | cut -d: -f7)" = /usr/bin/zsh
 su - tester -c '/usr/bin/zsh -lic "command -v git >/dev/null && command -v ssh >/dev/null && command -v chezmoi >/dev/null && command -v just >/dev/null && command -v starship >/dev/null && command -v eza >/dev/null && command -v bat >/dev/null && command -v fd >/dev/null && command -v rg >/dev/null && command -v fzf >/dev/null && command -v yazi >/dev/null && command -v nvim >/dev/null && command -v tmux >/dev/null"'
 echo 'PASS: complete thin-client bootstrap and rerun on fresh Ubuntu.'

@@ -19,26 +19,28 @@ printf '\nSelected tools:\n'
 mise ls --current
 
 printf '\nConfiguration drift:\n'
-if bash "$root/roles/thin/configure.sh" check >/dev/null 2>&1; then
+mise_matches=true
+for file in config.toml config.thin.toml miserc.toml; do
+  if ! cmp -s "$root/mise/$file" "$HOME/.config/mise/$file"; then
+    mise_matches=false
+    break
+  fi
+done
+if $mise_matches; then
   printf 'Managed mise configuration: matches repository\n'
 else
   printf 'Managed mise configuration: differs from repository\n'
 fi
 
-shell_state="$HOME/.local/state/devenv-shell"
-if [[ ! -e $shell_state/configured ]]; then
-  printf 'Transitional shell configuration: not configured\n'
-else
-  shell_diff=$(chezmoi \
-    --config "$root/wsl/chezmoi.toml" \
-    --persistent-state "$shell_state/chezmoistate.boltdb" \
-    --source "$root/wsl/preferences" \
-    diff --exclude=dirs --no-pager)
-  if [[ -z $shell_diff ]]; then
-    printf 'Transitional shell configuration: matches repository\n'
+dotfiles_source=${DEVENV_DOTFILES_SOURCE:-$HOME/projects/dotfiles}
+if [[ -d $dotfiles_source ]]; then
+  if bash "$root/scripts/apply-dotfiles.sh" check "$dotfiles_source" >/dev/null 2>&1; then
+    printf 'Shell and Neovim dotfiles: match repository\n'
   else
-    printf 'Transitional shell configuration: differs from repository\n'
+    printf 'Shell and Neovim dotfiles: differ from repository\n'
   fi
+else
+  printf 'Shell and Neovim dotfiles: checkout missing\n'
 fi
 
 if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -50,8 +52,8 @@ if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   fi
 fi
 
-if [[ -d $HOME/projects/dotfiles/.git ]]; then
-  printf 'Dotfiles revision: %s\n' "$(git -C "$HOME/projects/dotfiles" rev-parse --short HEAD)"
+if [[ -d $dotfiles_source/.git ]]; then
+  printf 'Dotfiles revision: %s\n' "$(git -C "$dotfiles_source" rev-parse --short HEAD)"
 else
   printf 'Dotfiles revision: not applied yet\n'
 fi
