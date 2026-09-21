@@ -30,11 +30,37 @@ useradd --create-home --shell /bin/bash tester
 printf 'tester ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/tester
 chmod 440 /etc/sudoers.d/tester
 printf '127.0.0.1 localhost %s\n' "$(hostname)" > /etc/hosts
+failure_diagnostics() {
+  printf 'Fresh-rootfs failure: selected dotfiles diff follows.\n' >&2
+  su - tester -c 'umask 022; ~/.local/bin/mise -E thin exec -- chezmoi --config ~/.local/state/devenv-dotfiles/chezmoi.toml --source /dotfiles diff --recursive --no-pager -- ~/.zshenv ~/.config/zsh ~/.config/nvim' || true
+}
+trap failure_diagnostics ERR
+# Missing private dotfiles is still a resumable tools-ready state.
+su - tester -c 'DEVENV_DOTFILES_SOURCE=/missing bash /devenv/bootstrap/unix.sh wsl-ubuntu-thin'
+su - tester -c 'cd /; ~/.local/bin/mise -E thin exec -- bash /devenv/scripts/check-thin-tools.sh installed'
 su - tester -c 'DEVENV_DOTFILES_SOURCE=/dotfiles bash /devenv/bootstrap/unix.sh wsl-ubuntu-thin'
+# Installed bytes, modes, mtimes and managed backup names must survive reruns.
+snapshot() {
+  find /home/tester/.local/share/mise/installs/aqua-openai-codex \
+    /home/tester/.local/share/mise/installs/aqua-anthropics-claude-code \
+    /home/tester/.local/share/mise/installs/gh /home/tester/.config/mise \
+    -type f -printf '%p %m %T@\n' -exec sha256sum {} \; | sort
+  find /home/tester/.local/state/devenv /home/tester/.local/state/devenv-dotfiles \
+    -name 'backup*' -print | sort
+}
+snapshot > /tmp/thin-before
 su - tester -c 'export PATH="$HOME/.local/bin:$PATH"; export DEVENV_DOTFILES_SOURCE=/dotfiles; cd /devenv; mise -E thin exec -- just bootstrap wsl-ubuntu-thin'
+snapshot > /tmp/thin-after
+cmp /tmp/thin-before /tmp/thin-after
 test "$(getent passwd tester | cut -d: -f7)" = /usr/bin/zsh
 su - tester -c '/usr/bin/zsh -lic "command -v git >/dev/null && command -v ssh >/dev/null && command -v chezmoi >/dev/null && command -v just >/dev/null && command -v starship >/dev/null && command -v eza >/dev/null && command -v bat >/dev/null && command -v fd >/dev/null && command -v rg >/dev/null && command -v fzf >/dev/null && command -v yazi >/dev/null && command -v nvim >/dev/null && command -v tmux >/dev/null"'
-echo 'PASS: complete thin-client bootstrap and rerun on fresh Ubuntu.'
+su - tester -c 'bash /devenv/scripts/check-thin-tools.sh check'
+su - tester -c 'cd /devenv; DEVENV_DOTFILES_SOURCE=/dotfiles ~/.local/bin/mise -E thin exec -- just doctor'
+su - tester -c '/usr/bin/zsh -lic "! command -v node && ! command -v npm"'
+test ! -e /home/tester/.config/gh/hosts.yml
+test ! -e /home/tester/.claude/.credentials.json
+test ! -e /home/tester/.codex/auth.json
+echo 'PASS: missing-dotfiles resume, native tools, fresh PATH, no Node/auth, and byte/mtime-stable rerun.'
 INSIDE
 # Mounts exist only in the child namespace. Parent cleanup happens after it exits.
 unshare --mount --fork bash -s -- "$temp/rootfs" <<'NAMESPACE'

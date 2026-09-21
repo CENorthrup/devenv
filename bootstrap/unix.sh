@@ -6,6 +6,7 @@ target=${1:-wsl-ubuntu-thin}
 case $target in
   wsl-ubuntu-thin)
     role=thin
+    [[ $(uname -m) == x86_64 ]] || { printf 'Thin native tools are validated on x86_64 only.\n' >&2; exit 1; }
     context_check="$root/contexts/wsl/check.sh"
     package_install="$root/os/linux/distros/ubuntu/packages.sh"
     ;;
@@ -27,7 +28,17 @@ export MISE_TRUSTED_CONFIG_PATHS="$root"
 cd "$root"
 
 bash "$root/scripts/configure-mise.sh" "$role" configure
-mise -E "$role" install
+if [[ $role == thin ]]; then
+  mise -E thin install --locked
+else
+  mise -E "$role" install
+fi
+if [[ $role == thin ]]; then
+  mise -E thin exec -- bash "$root/scripts/check-thin-tools.sh" installed
+  # The thin manifest supplies update-control environment variables. Record
+  # trust for these exact reviewed contents so later just/mise runs work too.
+  mise trust "$root/mise/config.thin.toml"
+fi
 set +e
 mise -E "$role" exec -- bash "$root/roles/$role/configure.sh" configure
 configure_status=$?

@@ -6,6 +6,7 @@ config.font_dirs = {
   wezterm.home_dir .. "/AppData/Local/Microsoft/Windows/Fonts",
 }
 config.font = wezterm.font("FiraCode Nerd Font Mono")
+config.font_size = 10.0
 config.color_scheme = "Tokyo Night"
 config.window_padding = {
   left = 8,

@@ -36,7 +36,19 @@ case "$action" in
     if [[ ! -e $editor_marker ]]; then
       # The first pass installs LazyVim itself; the second can then load its
       # imported specifications and restore the complete locked plugin set.
+      # On a fresh thin client the first pass can rewrite pins for plugins whose
+      # specifications are not loaded yet. Preserve the deployed lock for pass 2.
+      deployed_lock="$HOME/.config/nvim/lazy-lock.json"
+      editor_lock=
+      if [[ ${DEVENV_DOTFILES_ROLE:-thin} == thin && -f $deployed_lock ]]; then
+        editor_lock=$(mktemp)
+        trap 'rm -f -- "$editor_lock"' EXIT
+        cp -- "$deployed_lock" "$editor_lock"
+      fi
       DEVENV_EDITOR_INSTALL=1 nvim --headless '+Lazy! restore' +qa || true
+      if [[ -n $editor_lock ]]; then
+        install -m 644 "$editor_lock" "$deployed_lock"
+      fi
       DEVENV_EDITOR_INSTALL=1 nvim --headless '+Lazy! restore' +qa
       [[ -f $lazyvim && -f $snacks ]] || fail 'LazyVim plugin installation is incomplete.'
       mkdir -p "$(dirname "$editor_marker")"
@@ -83,4 +95,3 @@ case "$action" in
     ;;
   *) echo 'Usage: bash wsl/shell-setup.sh {user-install|editor-install|check}' ;;
 esac
-

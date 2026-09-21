@@ -17,10 +17,14 @@ DEVENV_DOTFILES_ROLE="$role" bash "$root/roles/$role/configure.sh" check
 
 [[ $(mise --version | awk 'NR == 1 {print $1}') == 2026.7.13 ]]
 tools=(just chezmoi nvim starship eza bat fd rg fzf yazi tmux)
+[[ $role == thin ]] && tools+=(codex claude gh)
 [[ $role == core ]] && tools+=(gh lazygit)
 for executable in "${tools[@]}"; do mise which "$executable" >/dev/null; done
 
 bash "$root/scripts/shell-editor-setup.sh" check
+if [[ $role == thin ]]; then
+  bash "$root/scripts/check-thin-tools.sh" check
+fi
 if [[ $role == core ]]; then
   output=$(nvim --headless '+lua local p=require("lazy.core.config").plugins["diffview.nvim"]; assert(p and p._.installed)' +qa 2>&1) || {
     printf '%s\nPinned Diffview is not installed for the core role.\n' "$output" >&2

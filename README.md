@@ -6,8 +6,9 @@ exe.dev.
 ## Local Windows and WSL setup
 
 Windows owns WezTerm and the terminal font. Ubuntu WSL provides a familiar shell,
-navigation tools, and basic editing without local language stacks or container
-infrastructure.
+navigation tools, basic editing, GitHub CLI, Codex CLI, and Claude Code without
+local language stacks or container infrastructure. Agent authentication is a
+separate user step.
 
 1. Run [`windows/bootstrap.ps1`](windows/bootstrap.ps1) from PowerShell.
 2. Complete the first Ubuntu launch and create the Linux user if prompted.
