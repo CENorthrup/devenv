@@ -102,12 +102,14 @@ shadowing executables and missing Claude update controls fail verification.
 `doctor` reports the same checks without authenticating.
 
 A machine that already has Codex or Claude from their own installers (typically
-`~/.local/bin/codex` and `~/.local/bin/claude`) must give ownership to mise:
-those copies come first on `PATH`, so verification reports them as path drift
-rather than accepting a second owner. After confirming the mise-managed version
-runs, remove the standalone launcher and its package directory
-(`~/.codex/packages/standalone`, `~/.local/share/claude`). Credentials under
-`~/.codex` and `~/.claude` are separate and are left in place.
+`~/.local/bin/codex` and `~/.local/bin/claude`) should give ownership to mise.
+The configured Zsh puts mise tools ahead of `~/.local/bin`, so verification still
+passes, but the standalone copies remain a second owner: they are used by shells
+without mise activation and may update themselves past the recorded pin. After
+confirming the mise-managed version runs, close any running session, then remove
+the standalone launcher and its package directory (`~/.codex/packages/standalone`,
+`~/.local/share/claude`). Credentials under `~/.codex` and `~/.claude` are
+separate and are left in place.
 
 After setup, authenticate separately with `gh auth login`, `codex`, and `claude`
 as appropriate. Installation and acceptance tests do not initiate a login.
