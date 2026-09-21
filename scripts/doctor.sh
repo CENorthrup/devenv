@@ -17,6 +17,10 @@ printf 'Operating system: %s %s\nContext: %s\n' "$NAME" "$VERSION_ID" "$context"
 printf 'Login shell: %s\nmise: %s\n' "$(getent passwd "$USER" | cut -d: -f7)" "$(mise --version | head -n 1)"
 printf '\nLoaded mise configuration:\n'; mise config ls
 printf '\nSelected tools:\n'; mise ls --current
+if [[ $role == thin ]]; then
+  printf '\nThin agent/GitHub tools (fresh login shell):\n'
+  bash "$root/scripts/check-thin-tools.sh" doctor
+fi
 
 printf '\nConfiguration drift:\n'
 if bash "$root/scripts/configure-mise.sh" "$role" check >/dev/null 2>&1; then
