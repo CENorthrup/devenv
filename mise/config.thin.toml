@@ -8,3 +8,12 @@ ripgrep = "15.1.0"
 fzf = "0.67.0"
 yazi = "26.9.1"
 tmux = "3.6a"
+# Native release backends: no npm/Node dependency.
+"aqua:openai/codex" = "0.155.1"
+"aqua:anthropics/claude-code" = "2.1.267"
+gh = "2.100.0"
+
+[env]
+# Mise owns upgrades; authentication and personal agent settings stay separate.
+DISABLE_AUTOUPDATER = "1"
+DISABLE_UPDATES = "1"

@@ -18,6 +18,10 @@ role_miserc="$root/mise/miserc.toml"
 [[ $role == core ]] && role_miserc="$root/mise/miserc.core.toml"
 sources=("$root/mise/config.toml" "$root/mise/config.$role.toml" "$role_miserc")
 destinations=("$config_dir/config.toml" "$config_dir/config.$role.toml" "$config_dir/miserc.toml")
+if [[ $role == thin ]]; then
+  sources+=("$root/mise/mise.lock" "$root/mise/mise.thin.lock")
+  destinations+=("$config_dir/mise.lock" "$config_dir/mise.thin.lock")
+fi
 
 for other in thin core; do
   [[ $other == "$role" || ! -e $state_dir/mise-$other-configured ]] || {
