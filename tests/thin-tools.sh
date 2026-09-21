@@ -63,4 +63,28 @@ for tool in codex claude gh; do
 done
 unset DISABLE_UPDATES
 reject 'missing update control' 'update controls'
+
+# Standalone installs are a second owner of the same executables. Each known
+# leftover, including a dangling launcher symlink, must be reported.
+standalone() { HOME="$scratch/home" bash "$root/scripts/check-thin-tools.sh" standalone; }
+mkdir -p "$scratch/home"
+standalone
+printf 'PASS: accepts a home with no standalone installs\n'
+leftovers=(.local/bin/claude .local/bin/codex .local/share/claude .claude/local .codex/packages/standalone)
+for leftover in "${leftovers[@]}"; do
+  mkdir -p "$scratch/home/$(dirname "$leftover")"
+  mkdir "$scratch/home/$leftover"
+  if standalone > "$scratch/result" 2>&1; then
+    printf 'FAIL: accepted standalone %s\n' "$leftover" >&2; exit 1
+  fi
+  grep -q "Standalone install found: $scratch/home/$leftover" "$scratch/result"
+  rmdir "$scratch/home/$leftover"
+  printf 'PASS: rejects standalone ~/%s\n' "$leftover"
+done
+ln -s "$scratch/gone" "$scratch/home/.local/bin/codex"
+if standalone > "$scratch/result" 2>&1; then
+  printf 'FAIL: accepted a dangling standalone launcher\n' >&2; exit 1
+fi
+grep -q 'Standalone install found' "$scratch/result"
+printf 'PASS: rejects a dangling standalone launcher\n'
 printf 'PASS: thin tool verification failure cases\n'

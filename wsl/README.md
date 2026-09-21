@@ -98,16 +98,18 @@ existing thin client, review the changes, run
 `just check` and `just doctor` in a new terminal. Checks verify the three CLI
 versions and exact mise executable paths from a clean login Zsh environment,
 starting in the home directory without an inherited mise PATH. Missing or
-shadowing executables and missing Claude update controls fail verification.
-`doctor` reports the same checks without authenticating.
+shadowing executables, missing Claude update controls, and leftover standalone
+Codex or Claude installs fail verification. `doctor` reports the same checks
+without authenticating.
 
 A machine that already has Codex or Claude from their own installers (typically
-`~/.local/bin/codex` and `~/.local/bin/claude`) should give ownership to mise.
-The configured Zsh puts mise tools ahead of `~/.local/bin`, so verification still
-passes, but the standalone copies remain a second owner: they are used by shells
-without mise activation and may update themselves past the recorded pin. After
-confirming the mise-managed version runs, close any running session, then remove
-the standalone launcher and its package directory (`~/.codex/packages/standalone`,
+`~/.local/bin/codex` and `~/.local/bin/claude`) must give ownership to mise.
+The configured Zsh puts mise tools ahead of `~/.local/bin`, so the mise versions
+are the ones normally run, but the standalone copies remain a second owner: they
+are used by shells without mise activation and may update themselves past the
+recorded pin. `just check` therefore reports them. After confirming the
+mise-managed version runs, close any running session, then remove the standalone
+launcher and its package directory (`~/.codex/packages/standalone`,
 `~/.local/share/claude`). Credentials under `~/.codex` and `~/.claude` are
 separate and are left in place.
 

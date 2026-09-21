@@ -4,8 +4,8 @@ set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 action=${1:-check}
 case $action in
-  installed|session|check|doctor) ;;
-  *) printf 'Usage: %s {installed|session|check|doctor}\n' "$0" >&2; exit 1 ;;
+  installed|session|standalone|check|doctor) ;;
+  *) printf 'Usage: %s {installed|session|standalone|check|doctor}\n' "$0" >&2; exit 1 ;;
 esac
 
 # Read the exact pins from their existing owner, not a second version table.
@@ -53,8 +53,31 @@ verify_tools() {
   }
 }
 
+# Codex and Claude also ship self-updating standalone installers. Mise owns
+# both here, so a leftover is a second owner of the same executable: it serves
+# shells without mise activation and can move past the recorded pin.
+standalone_leftovers() {
+  local path found=0
+  for path in "$HOME/.local/bin/claude" "$HOME/.local/bin/codex" \
+    "$HOME/.local/share/claude" "$HOME/.claude/local" "$HOME/.codex/packages/standalone"; do
+    if [[ -e $path || -L $path ]]; then
+      printf 'Standalone install found: %s\n' "$path" >&2
+      found=1
+    fi
+  done
+  ((found == 0)) || {
+    printf 'Remove standalone Codex/Claude installs; see the migration note in wsl/README.md.\n' >&2
+    return 1
+  }
+}
+
 if [[ $action == installed || $action == session ]]; then
   verify_tools
+  exit
+fi
+
+if [[ $action == standalone ]]; then
+  standalone_leftovers
   exit
 fi
 
@@ -66,12 +89,19 @@ fresh_shell() {
     'bash "$1/scripts/check-thin-tools.sh" session' -- "$root")
 }
 
+status=0
 if [[ $action == doctor ]]; then
   if fresh_shell; then
     printf 'Thin agent/GitHub tools: versions, paths and fresh login PATH match.\n'
   else
     printf 'Thin agent/GitHub tools: drift or incomplete fresh-shell setup.\n'
   fi
+  if standalone_leftovers; then
+    printf 'Standalone Codex/Claude installs: none found.\n'
+  fi
 else
-  fresh_shell
+  # Report both problems rather than stopping at the first.
+  fresh_shell || status=1
+  standalone_leftovers || status=1
 fi
+exit "$status"
