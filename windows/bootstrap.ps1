@@ -79,7 +79,7 @@ function Install-FiraCodeNerdFont {
 }
 
 function Set-WezTermConfig {
-    $Destination = Join-Path $HOME '.wezterm.lua'
+    param([string]$Destination = (Join-Path $HOME '.wezterm.lua'))
     if (Test-Path -LiteralPath $Destination) {
         $Current = (Get-FileHash -Algorithm SHA256 $Destination).Hash
         $Desired = (Get-FileHash -Algorithm SHA256 $WezTermConfigSource).Hash
@@ -102,6 +102,16 @@ function Install-UbuntuWsl {
     Write-Host "Launch $Distribution once to create its Linux user, then run wsl/bootstrap.sh from the repository."
 }
 
+function Test-WezTermConfig {
+    param([string]$Destination = (Join-Path $HOME '.wezterm.lua'))
+    if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) { throw 'WezTerm configuration was not found.' }
+    $Current = (Get-FileHash -Algorithm SHA256 $Destination).Hash
+    $Desired = (Get-FileHash -Algorithm SHA256 $WezTermConfigSource).Hash
+    if ($Current -ne $Desired) {
+        throw 'WezTerm configuration differs from devenv. Review changes, then run -Action PrepareWindows to back up and apply.'
+    }
+}
+
 function Test-Setup {
     $WezTerm = 'C:\Program Files\WezTerm\wezterm.exe'
     if (-not (Test-Path -LiteralPath $WezTerm)) { throw 'WezTerm was not found.' }
@@ -109,7 +119,7 @@ function Test-Setup {
     if (-not (Get-ChildItem -LiteralPath $Fonts -Filter 'FiraCodeNerdFont*.ttf' -Force -ErrorAction SilentlyContinue)) {
         throw 'FiraCode Nerd Font was not found.'
     }
-    if (-not (Test-Path -LiteralPath (Join-Path $HOME '.wezterm.lua'))) { throw 'WezTerm configuration was not found.' }
+    Test-WezTermConfig
     wsl.exe --status
     if ($LASTEXITCODE -ne 0) { throw 'WSL status check failed.' }
     Write-Host 'Windows terminal prerequisites are ready.'
