@@ -2,7 +2,8 @@
 
 This profile provides a lightweight local access environment. It is tested on
 Ubuntu 26.04 WSL 2, x86_64. Development runtimes, containers, language servers,
-databases, and coding agents are outside this profile.
+and databases are outside this profile. Codex CLI and Claude Code are intentional
+thin-client tools; project runtimes remain project-owned.
 
 ## Install
 
@@ -34,6 +35,7 @@ The bootstrap installs and configures:
 - Zsh 5.9, Prezto at the recorded commit, and Starship
 - eza, bat, fd, ripgrep, fzf, Yazi 26.9.1, and tmux
 - Neovim 0.11.6 with the basic LazyVim lock from the private dotfiles repository
+- GitHub CLI 2.100.0, Codex CLI 0.155.1, and Claude Code 2.1.267
 
 The private dotfiles repository supplies Zsh and Neovim configuration. Zsh loads
 Prezto modules and the familiar aliases in an explicit order. Its vi insert mode
@@ -44,8 +46,19 @@ insert-mode escape mapping.
 System prerequisites come from Ubuntu 26.04. Mise installs the pinned portable
 tools from [`../mise/config.toml`](../mise/config.toml) and
 [`../mise/config.thin.toml`](../mise/config.thin.toml). Prezto, lazy.nvim, and the
-LazyVim plugin set use recorded commits. The mise installer is checked against its
-recorded SHA256. Authentication remains a separate user step; the scripts create
+LazyVim plugin set use recorded commits. Thin-client installation preserves the
+approved editor lock between its two initial plugin-installation passes. The mise
+installer is checked against its recorded SHA256. The x86_64 thin target installs native release binaries through
+mise, including Codex and Claude (no npm or Node). `mise/mise.lock` and
+`mise/mise.thin.lock` record the release URLs and SHA256 checksums and are deployed
+only for thin.
+Bootstrap uses `mise install --locked`; it never resolves `latest`. Claude
+`DISABLE_AUTOUPDATER=1` and `DISABLE_UPDATES=1` are supplied by the thin mise
+environment to keep upgrades under the recorded pins. Launch agents from the
+configured shell or `mise -E thin exec -- <command>` so those controls apply.
+Direct binary invocation outside that environment is not the managed entry path.
+
+Authentication remains a separate user step; the scripts create
 no keys, tokens, GitHub sessions, or remote host entries.
 
 The bootstrap is safe to rerun. Existing matching installations are preserved.
@@ -73,9 +86,31 @@ just doctor
 `just check` is read-only. `just doctor` reports the selected target, active mise
 configuration and versions, shell, repository revision, and drift. When reviewed
 repository configuration intentionally changes, `just apply-role` backs up the
-current managed files before applying it. Version upgrades require editing the
-recorded pin and rerunning the disposable test; bootstrap never upgrades pins by
-itself.
+current managed files before applying it. Version upgrades require reviewing the
+recorded pin and lockfile together and rerunning the disposable test; bootstrap
+never upgrades pins by itself.
+
+The thin manifest now contains environment variables, so mise requires trust for
+its exact contents. Bootstrap records that trust after installation. For an
+existing thin client, review the changes, run
+`~/.local/bin/mise trust mise/config.thin.toml`, then `just apply-role` and
+`just bootstrap` to apply configuration and install the new pins. Run
+`just check` and `just doctor` in a new terminal. Checks verify the three CLI
+versions and exact mise executable paths from a clean login Zsh environment,
+starting in the home directory without an inherited mise PATH. Missing or
+shadowing executables and missing Claude update controls fail verification.
+`doctor` reports the same checks without authenticating.
+
+A machine that already has Codex or Claude from their own installers (typically
+`~/.local/bin/codex` and `~/.local/bin/claude`) must give ownership to mise:
+those copies come first on `PATH`, so verification reports them as path drift
+rather than accepting a second owner. After confirming the mise-managed version
+runs, remove the standalone launcher and its package directory
+(`~/.codex/packages/standalone`, `~/.local/share/claude`). Credentials under
+`~/.codex` and `~/.claude` are separate and are left in place.
+
+After setup, authenticate separately with `gh auth login`, `codex`, and `claude`
+as appropriate. Installation and acceptance tests do not initiate a login.
 
 ## Windows entry point
 
@@ -83,7 +118,9 @@ Run [`../windows/bootstrap.ps1`](../windows/bootstrap.ps1) from PowerShell to pr
 WezTerm and FiraCode Nerd Font, install Ubuntu WSL when missing, and verify Windows
 prerequisites. It does not depend on winget. Windows configuration and Linux setup
 remain separate so a restart or first Ubuntu user-creation prompt can be completed
-before running the Linux bootstrap.
+before running the Linux bootstrap. WezTerm uses an explicit 10.0-point font;
+`-Action Check` rejects a deployed configuration that differs from
+`windows/wezterm.lua`.
 
 ## Tests
 
@@ -94,10 +131,14 @@ sudo bash wsl/test-fresh-ubuntu.sh ~/projects/dotfiles
 ```
 
 It downloads Ubuntu Base 26.04.1, verifies the image manifest, creates an isolated
-root filesystem and test user, runs the complete bootstrap twice, verifies Zsh as
-the login shell, and removes the temporary filesystem. It changes no packages in
-the real Ubuntu installation. It shares the WSL kernel and therefore does not test
-Windows distribution import, first launch, or graphical terminal interaction.
+root filesystem and test user, tests the missing-dotfiles resume point, completes
+bootstrap, reruns it, verifies Zsh as the login shell, and removes the temporary
+filesystem. It verifies native CLI versions and fresh-shell paths, unchanged
+tool/configuration bytes and mtimes
+on rerun, no new backups, and no Node/npm or authentication credentials. It changes
+no packages in the real Ubuntu installation. It shares the WSL kernel and
+therefore does not test Windows distribution import, first launch, or graphical
+terminal interaction.
 
 ## Acceptance after a fresh WSL install
 
@@ -105,3 +146,16 @@ Open a new WezTerm window and check the prompt, glyphs, copy and paste, scrollin
 resize behavior, Unicode, `yazi`, and `nvim`. Then authenticate GitHub explicitly,
 clone repositories into the Linux filesystem, and test the actual exe.dev connection
 when its workspace is available.
+
+Focused verification regression test (no downloads or authentication):
+
+```bash
+bash tests/thin-tools.sh
+```
+
+The release locks were generated with mise 2026.7.13 in an isolated global
+configuration using `mise -E thin lock --global --platform linux-x64`. The Claude
+SHA256 was supplemented from its versioned official manifest because this mise
+release's aqua metadata omits it. The existing bat and Neovim archive digests were
+also completed from downloaded release artifacts. When updating pins, review
+checksums as well as versions; do not deploy an automatically rewritten lockfile.
