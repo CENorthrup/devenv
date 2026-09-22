@@ -12,7 +12,9 @@ packages=(
   ca-certificates
   curl
   git
+  openssl
   openssh-client
+  python3
   unzip
   xz-utils
   zsh
