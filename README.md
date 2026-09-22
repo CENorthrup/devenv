@@ -64,6 +64,16 @@ working candidate; it has not been designated as a reusable template.
 Authentication credentials and private keys are never part of reusable images or
 bootstrap scripts.
 
+## Independent agent review identity
+
+The [GitHub reviewer App guide](docs/github-reviewer.md) covers registration,
+local credentials, commit-bound review submission and key rotation.
+`just submit-agent-review --help` exposes the reviewer-only interface;
+`just test-agent-review` runs its offline tests. The GitHub identity is a durable
+reviewer role, while each review records the actual model, effort and harness.
+Clay remains the final merge authority. Real App acceptance requires registration
+and installation as described in the guide.
+
 ## Factory agent skills
 
 Factory-owned skills live under [`skills/`](skills/) and are copied to the

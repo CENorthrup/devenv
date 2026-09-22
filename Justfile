@@ -1,4 +1,5 @@
 set shell := ["bash", "-euo", "pipefail", "-c"]
+set positional-arguments
 
 default:
     @just --list
@@ -43,3 +44,11 @@ clean-test-skills:
 # Exercise deployment, drift, ownership, and isolated branch-test behavior.
 test-agent-skills:
     bash tests/agent-skills.sh
+
+# Submit one App-authenticated, commit-bound review (see docs/github-reviewer.md).
+submit-agent-review *args:
+    bash scripts/submit-agent-review.sh "$@"
+
+# Exercise reviewer authentication and submission offline with generated test keys.
+test-agent-review:
+    bash tests/agent-review.sh
