@@ -1,21 +1,36 @@
-# GitHub reviewer App
+# Agent review submission
 
-`devenv-reviewer[bot]` is the durable factory reviewer role. The model, effort and
-harness that performed a review are recorded in its body, separately from GitHub
-identity. This avoids attributing agent findings to Clay and allows an independent
-identity to submit `COMMENT`, `APPROVE` or `REQUEST_CHANGES` on human-authored PRs.
-The future worker identity remains out of scope; issue #7 remains its follow-up.
+This repository owns the *mechanism* for submitting an agent review under a GitHub
+App identity. It does not own the identity itself.
+
+> **Scope: no GitHub App is registered by this work.**
+> Creating the reviewer and worker App identities, installing them and validating
+> them live is deferred to the Claytron9000 GitHub identity/bootstrap work, which
+> will register `claytron-reviewer` and `claytron-worker`. Nothing here requires
+> an App to exist, and no App name is compiled into the tool: the local
+> configuration names the App this command will pin. When those identities are
+> created, this mechanism moves or adapts to them by configuration, not by a
+> rewrite.
+
+A review records the model, effort and harness that performed it in its body,
+separately from GitHub identity. That keeps agent findings from being attributed
+to Clay and lets an independent identity submit `COMMENT`, `APPROVE` or
+`REQUEST_CHANGES` on human-authored PRs once one exists.
 
 Clay retains final merge authority. This tool cannot merge, does not change branch
 protection or bypass rules, and must never be used to impersonate human approval.
 GitHub's `Pull requests: write` permission is broader than writing reviews; the
 narrow command interface is not a stronger GitHub authorization boundary.
 
-## One-time registration (Clay)
+## Registration reference (deferred to Claytron9000)
 
-1. Open <https://github.com/settings/apps/new> under `CENorthrup`.
-   Name the App **devenv-reviewer**. If unavailable or its resulting slug differs,
-   stop and choose the name with Clay; do not invent an alternate name.
+These steps are recorded so the identity work has a starting point. **Do not
+perform them as part of this repository's reviewer tooling.** The Claytron9000
+GitHub identity/bootstrap work owns App creation, naming and installation, and
+may change any of it. `<app-slug>` below stands for whatever it registers.
+
+1. Register the App under `CENorthrup`. The Claytron9000 work decides the name;
+   this tooling does not require or assume one.
 2. Set homepage URL to `https://github.com/CENorthrup/devenv` and description to
    `Independent factory agent reviews with model and commit provenance`.
    Leave callback/setup URLs blank. Leave user authorization, device flow and
@@ -24,33 +39,38 @@ narrow command interface is not a stronger GitHub authorization boundary.
    (automatic). All other repository, organization and account permissions: none.
    Select **Only on this account** for where the App can be installed.
    Do not give the App branch-protection bypass rights.
-4. Create the App and record its **App ID** (not Client ID). Confirm its public
-   slug is `devenv-reviewer` at `https://github.com/apps/devenv-reviewer`.
+4. Create the App and record its **App ID** (not Client ID) and its public slug
+   at `https://github.com/apps/<app-slug>`.
 5. Under **Install App**, select `CENorthrup`, **Only select repositories**, and
    **devenv** only. Record the installation ID from the resulting installation
    settings URL, `https://github.com/settings/installations/<installation-id>`.
 6. Generate a private key in the App's settings. Store the downloaded PEM outside
-   every checkout, at `~/.config/devenv-reviewer/private-key.pem` with mode `600`.
+   every checkout, at `~/.config/devenv-agent-review/private-key.pem` with mode `600`.
    Use a mode `700` directory. Do not paste the PEM, JWT or installation token into
    chat, a PR, shell arguments or logs. Do not distribute it to arbitrary VMs.
-7. Create `~/.config/devenv-reviewer/config.json`, substituting the real IDs and
-   absolute private-key path. These are local values and do not belong in Git:
+7. Create `~/.config/devenv-agent-review/config.json`, substituting the real
+   values. These are local values and do not belong in Git:
 
    ```json
    {
      "app_id": "<App ID>",
      "installation_id": "<Installation ID>",
-     "private_key_path": "/absolute/path/to/.config/devenv-reviewer/private-key.pem"
+     "app_slug": "<app-slug>",
+     "private_key_path": "/absolute/path/to/.config/devenv-agent-review/private-key.pem"
    }
    ```
 
-   Set config mode `600` too. This is a schema example, not a registered App.
-   The command rejects missing/invalid IDs and unsafe key permissions, ownership,
-   symlinks and unreadable keys. PEM ignore rules are a guard against accidents,
+   Set config mode `600` too. This is a schema example with placeholders, not a
+   registered App. `app_slug` is the identity this command pins: the tool verifies
+   the App it authenticated as, and the bot login that authored the review, both
+   match it. No slug is compiled in, so the same mechanism serves whatever
+   Claytron9000 registers. The command rejects a missing or malformed slug,
+   missing/invalid IDs and unsafe key permissions, ownership, symlinks and
+   unreadable keys. PEM ignore rules are a guard against accidents,
    not permission to store credentials in a checkout.
 
-Before and after real acceptance, run `gh auth status` and `gh api user --jq .login`
-using the normal human environment. Do not change `gh` authentication. The reviewer
+Whenever a live review is eventually attempted, run `gh auth status` and
+`gh api user --jq .login` before and after, using the normal human environment. Do not change `gh` authentication. The reviewer
 does not invoke `gh`, read its credentials, set `GH_TOKEN`, or write its configuration.
 
 ## Submit a completed review
@@ -142,33 +162,44 @@ repositories. The command verifies selected-repository installation mode and
 restricts each minted token to `devenv`; the settings page is the audit for other
 repositories deliberately or accidentally added to the installation itself.
 
-## Validation and acceptance status
+## Completion scope and deferred live validation
 
-Run `just test-agent-review` offline. The tests generate disposable RSA keys in
-temporary directories, mock GitHub, and exercise events, provenance, signing,
-stale heads, permission/identity failures, secret-safe errors and human auth
-preservation. The existing skills, thin-tools and dotfiles tests remain relevant.
+**This work is complete without a GitHub App.** Everything testable without a live
+App is implemented and covered offline: argument and provenance validation, JWT
+signing, App/installation/permission pinning, token scoping, the commit-bound head
+check, credential-safe failures and human `gh` auth preservation. No App is
+registered, no identity is claimed, and no bot review or approval was manufactured.
 
-Real acceptance is **pending registration/installation and real reviews**:
+Live validation is **deferred to the Claytron9000 GitHub identity/bootstrap work**
+and is explicitly not a gate on this repository's reviewer tooling. When
+`claytron-reviewer` exists and is installed, that work should:
 
 1. Record the normal human `gh` identity without copying tokens into evidence.
 2. Have an independent reviewer examine a real PR and record the model/profile,
    effort, harness and full head SHA.
-3. Submit its justified review through the command. Verify the author is
-   `devenv-reviewer[bot]`, the generated provenance is accurate, and `commit_id`
-   matches the reviewed SHA. Save only the review URL and nonsecret evidence.
+3. Submit that justified review through this command with `app_slug` set to the
+   registered slug. Verify the author is `<app-slug>[bot]`, the generated
+   provenance is accurate, and `commit_id` matches the reviewed SHA. Save only the
+   review URL and nonsecret evidence.
 4. Establish a real non-`COMMENT` event (`APPROVE` or `REQUEST_CHANGES`) justified
    by that independent review. A test approval of unreviewed code is prohibited.
-5. Verify the normal human identity again. Record acceptance evidence here in a
-   follow-up commit; do not call this complete before both real identity and
-   non-`COMMENT` validation pass.
+5. Verify the normal human identity again.
 
-### PR #8 follow-up validation — 2026-09-22
+Until then, agent reviews continue to be posted under the human account, and the
+provenance block in the review body remains the way to tell who reasoned about the
+code.
 
-Validated the existing PR worktree based on `54d3c9d`, with the thin dependency
-documentation correction and core package additions removed. The core package
-list now matches approved master; no existing core bootstrap requirement was
-found for adding these reviewer-only prerequisites. Dotfiles input was clean at
+### Offline validation — 2026-09-22
+
+Run `just test-agent-review`. The tests generate disposable RSA keys in temporary
+directories whose paths contain shell-sensitive characters, mock GitHub, and
+exercise events, provenance, signing, stale heads, configured-identity and
+permission failures, secret-safe errors and human auth preservation. The existing
+skills, thin-tools and dotfiles tests remain relevant.
+
+The thin-client package adapter gained Python 3 and OpenSSL, so the disposable
+fresh-rootfs test was re-run against that change. The core package list is
+unchanged from approved master. Dotfiles input was clean at
 `c0b6febc5bcd6d7863c10c8e3cf7c2538ae095f3`.
 
 - `sudo bash wsl/test-fresh-ubuntu.sh /home/cenorthrup/projects/dotfiles`
@@ -191,16 +222,9 @@ found for adding these reviewer-only prerequisites. Dotfiles input was clean at
   `/tmp/devenv-pr8-fresh-ubuntu-root.log`, and
   `/tmp/devenv-pr8-fresh-ubuntu-terminal.log` respectively. The temporary root
   filesystems were cleaned by the test; no host packages were changed.
-- `tests/agent-review.sh` (9 tests), `tests/agent-skills.sh`,
-  `tests/thin-tools.sh`, and `tests/dotfiles-permissions.sh` all passed.
-  Package-adapter and fresh-Ubuntu shell syntax checks and `git diff --check`
-  passed as well.
-
-Live App acceptance is still blocked: the local reviewer config is absent, and
-the real App ID, installation ID and private-key path have not been supplied.
-No bot review or approval was manufactured. Keep PR #8 draft until an independent
-reviewer completes the real identity/provenance and justified non-`COMMENT`
-validation described above.
+- `tests/agent-review.sh`, `tests/agent-skills.sh`, `tests/thin-tools.sh` and
+  `tests/dotfiles-permissions.sh` all passed. Package-adapter and fresh-Ubuntu
+  shell syntax checks and `git diff --check` passed as well.
 
 GitHub references: [App registration](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [App JWTs](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app),

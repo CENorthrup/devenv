@@ -17,6 +17,9 @@ spec = importlib.util.spec_from_file_location("reviewer", ROOT / "scripts/submit
 reviewer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reviewer)
 SHA = "a" * 40
+# Deliberately not a name this repository registers: the tool must pin whatever
+# App slug the local configuration names, with none compiled in.
+SLUG = "example-reviewer"
 
 
 class ReviewTests(unittest.TestCase):
@@ -29,7 +32,8 @@ class ReviewTests(unittest.TestCase):
                        check=True, capture_output=True)
         self.key.chmod(0o600)
         self.config = self.root / "config.json"
-        self.values = {"app_id": "12", "installation_id": "34", "private_key_path": str(self.key)}
+        self.values = {"app_id": "12", "installation_id": "34", "app_slug": SLUG,
+                       "private_key_path": str(self.key)}
         self.config.write_text(json.dumps(self.values))
         self.body = self.root / "review ' $.md"
         self.body.write_text("Reviewed the implementation and failure cases.")
@@ -44,7 +48,7 @@ class ReviewTests(unittest.TestCase):
         if path in self.overrides:
             return self.overrides[path]
         if path == "/app":
-            return {"id": 12, "slug": "devenv-reviewer"}
+            return {"id": 12, "slug": SLUG}
         if path.endswith("/installation"):
             return {"id": 34, "account": {"login": "CENorthrup"}, "repository_selection": "selected",
                     "permissions": {"metadata": "read", "pull_requests": "write"}}
@@ -57,7 +61,7 @@ class ReviewTests(unittest.TestCase):
             return {"head": {"sha": SHA}}
         if path.endswith("/reviews"):
             self.assertEqual(credential, "TOKEN_SENTINEL")
-            return {"id": 123, "user": {"login": "devenv-reviewer[bot]"}, "commit_id": payload["commit_id"],
+            return {"id": 123, "user": {"login": SLUG + "[bot]"}, "commit_id": payload["commit_id"],
                     "state": {"COMMENT": "COMMENTED", "APPROVE": "APPROVED", "REQUEST_CHANGES": "CHANGES_REQUESTED"}[payload["event"]]}
         self.fail("Unexpected endpoint")
 
@@ -126,6 +130,24 @@ class ReviewTests(unittest.TestCase):
             self.submit()
         self.assertFalse(self.calls)
 
+    def test_app_slug_must_come_from_configuration(self):
+        for value in (None, "", "Example-Reviewer", "example reviewer", "-bad", "a" * 65):
+            config = self.values.copy()
+            if value is None:
+                del config["app_slug"]
+            else:
+                config["app_slug"] = value
+            self.config.write_text(json.dumps(config))
+            with self.subTest(value=value), self.assertRaisesRegex(reviewer.ReviewError, "app_slug"):
+                self.submit()
+        self.assertFalse(self.calls)
+        self.config.write_text(json.dumps(self.values))
+        # A review returned under a different bot login must be rejected.
+        self.overrides["/repos/CENorthrup/devenv/pulls/8/reviews"] = {
+            "id": 1, "user": {"login": "someone-else[bot]"}, "commit_id": SHA, "state": "COMMENTED"}
+        with self.assertRaisesRegex(reviewer.ReviewError, "identity"):
+            self.submit()
+
     def test_jwt_signature_and_claims(self):
         token = reviewer.app_jwt(self.values)
         header, claims, signature = token.split(".")
@@ -144,7 +166,7 @@ class ReviewTests(unittest.TestCase):
 
     def test_identity_installation_token_and_api_failures(self):
         cases = {
-            "/app": {"id": 12, "slug": "other"},
+            "/app": {"id": 12, "slug": "other-app"},
             "/repos/CENorthrup/devenv/installation": {"id": 99},
             "/app/installations/34/access_tokens": {"token": "TOKEN_SENTINEL"},
             "/installation/repositories?per_page=100": {"total_count": 2},

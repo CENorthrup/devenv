@@ -14,7 +14,6 @@ import urllib.error
 import urllib.request
 
 REPOSITORY = "CENorthrup/devenv"
-APP_SLUG = "devenv-reviewer"
 
 
 class ReviewError(Exception):
@@ -29,7 +28,7 @@ class Parser(argparse.ArgumentParser):
 
 def arguments(argv):
     parser = Parser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path.home() / ".config/devenv-reviewer/config.json")
+    parser.add_argument("--config", type=Path, default=Path.home() / ".config/devenv-agent-review/config.json")
     parser.add_argument("--repo", required=True, choices=[REPOSITORY])
     parser.add_argument("--pr", required=True, type=int)
     parser.add_argument("--event", required=True, choices=["COMMENT", "APPROVE", "REQUEST_CHANGES"])
@@ -61,6 +60,10 @@ def configuration(path):
     for field in ("app_id", "installation_id"):
         if not re.fullmatch(r"[1-9][0-9]*", str(config.get(field, ""))):
             raise ReviewError("Configuration requires positive app_id and installation_id values.")
+    # The reviewer App identity is supplied locally, so no App name is compiled in
+    # and the same mechanism can pin a differently named App without a code change.
+    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?", str(config.get("app_slug", ""))):
+        raise ReviewError("Configuration requires the registered App slug as app_slug.")
     if not isinstance(config.get("private_key_path"), str) or not Path(config["private_key_path"]).is_absolute():
         raise ReviewError("Configuration requires an absolute private_key_path.")
     return config
@@ -104,7 +107,7 @@ def api(method, path, credential, payload=None):
         data=None if payload is None else json.dumps(payload).encode(), method=method,
         headers={"Authorization": "Bearer " + credential, "Accept": "application/vnd.github+json",
                  "Content-Type": "application/json", "X-GitHub-Api-Version": "2026-03-10",
-                 "User-Agent": "devenv-reviewer"},
+                 "User-Agent": "devenv-agent-review"},
     )
     try:
         with urllib.request.build_opener(NoRedirect()).open(request, timeout=30) as response:
@@ -150,8 +153,8 @@ def submit(args, request=api, sign=app_jwt):
     config = configuration(args.config)
     jwt = sign(config)
     app = request("GET", "/app", jwt)
-    if app.get("slug") != APP_SLUG or str(app.get("id")) != str(config["app_id"]):
-        raise ReviewError("App identity does not match devenv-reviewer; confirm registration with Clay.")
+    if app.get("slug") != config["app_slug"] or str(app.get("id")) != str(config["app_id"]):
+        raise ReviewError("App identity does not match the configured app_slug and app_id.")
     installation = request("GET", f"/repos/{args.repo}/installation", jwt)
     if (str(installation.get("id")) != str(config["installation_id"])
             or installation.get("repository_selection") != "selected"
@@ -173,7 +176,7 @@ def submit(args, request=api, sign=app_jwt):
     if pr.get("head", {}).get("sha") != args.head_sha:
         raise ReviewError("PR head changed; review the new commit before submitting.")
     result = request("POST", f"/repos/{args.repo}/pulls/{args.pr}/reviews", token, payload)
-    if (result.get("user", {}).get("login") != APP_SLUG + "[bot]"
+    if (result.get("user", {}).get("login") != config["app_slug"] + "[bot]"
             or result.get("commit_id") != args.head_sha
             or result.get("state") != {"COMMENT": "COMMENTED", "APPROVE": "APPROVED", "REQUEST_CHANGES": "CHANGES_REQUESTED"}[args.event]):
         raise ReviewError("Review response identity, commit or state was unexpected; inspect GitHub before retrying.")

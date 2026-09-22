@@ -64,15 +64,19 @@ working candidate; it has not been designated as a reusable template.
 Authentication credentials and private keys are never part of reusable images or
 bootstrap scripts.
 
-## Independent agent review identity
+## Agent review submission
 
-The [GitHub reviewer App guide](docs/github-reviewer.md) covers registration,
-local credentials, commit-bound review submission and key rotation.
+The [agent review guide](docs/github-reviewer.md) covers commit-bound review
+submission, local credential handling and key rotation.
 `just submit-agent-review --help` exposes the reviewer-only interface;
-`just test-agent-review` runs its offline tests. The GitHub identity is a durable
-reviewer role, while each review records the actual model, effort and harness.
-Clay remains the final merge authority. Real App acceptance requires registration
-and installation as described in the guide.
+`just test-agent-review` runs its offline tests. Each review records the actual
+model, effort and harness separately from the GitHub identity that posts it.
+Clay remains the final merge authority.
+
+This repository owns the submission mechanism, not the identity. No GitHub App is
+registered here; the App name is local configuration rather than compiled in.
+Creating the `claytron-reviewer` and `claytron-worker` identities and validating
+them live is deferred to the Claytron9000 GitHub identity/bootstrap work.
 
 ## Factory agent skills
 
