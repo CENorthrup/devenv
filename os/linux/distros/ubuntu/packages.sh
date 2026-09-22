@@ -12,8 +12,8 @@ packages=(
   ca-certificates
   curl
   git
-  openssl
   openssh-client
+  openssl
   python3
   unzip
   xz-utils
