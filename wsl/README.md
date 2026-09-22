@@ -5,6 +5,10 @@ Ubuntu 26.04 WSL 2, x86_64. Development runtimes, containers, language servers,
 and databases are outside this profile. Codex CLI and Claude Code are intentional
 thin-client tools; project runtimes remain project-owned.
 
+Ubuntu Python 3 and OpenSSL are installed specifically for the GitHub reviewer
+tooling: Python handles the review API and JSON, and OpenSSL signs App JWTs.
+They are tooling prerequisites, not a managed project Python environment.
+
 ## Install
 
 From an Ubuntu shell, run the complete entry point as the normal Linux user:
@@ -31,6 +35,7 @@ bootstrap stores no tokens or SSH keys.
 The bootstrap installs and configures:
 
 - Ubuntu-native Git, OpenSSH client, curl, and CA certificates
+- Ubuntu Python 3 and OpenSSL for [reviewer tooling](../docs/github-reviewer.md)
 - mise 2026.7.13 with just 1.58.0 and chezmoi 2.72.1
 - Zsh 5.9, Prezto at the recorded commit, and Starship
 - eza, bat, fd, ripgrep, fzf, Yazi 26.9.1, and tmux

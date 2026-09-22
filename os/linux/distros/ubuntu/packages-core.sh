@@ -8,7 +8,7 @@ set -euo pipefail
   exit 1
 }
 
-packages=(ca-certificates curl git less locales openssh-client openssl python3 sudo unzip xz-utils zsh)
+packages=(ca-certificates curl git less locales openssh-client sudo unzip xz-utils zsh)
 admin=()
 [[ $EUID == 0 ]] || admin=(sudo)
 missing=()

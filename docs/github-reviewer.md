@@ -55,7 +55,9 @@ does not invoke `gh`, read its credentials, set `GH_TOKEN`, or write its configu
 
 ## Submit a completed review
 
-Dependencies: Python 3 and OpenSSL, installed by both Ubuntu package adapters.
+Dependencies: Python 3 and OpenSSL, installed by the thin-client Ubuntu package adapter.
+The core VM package list is unchanged; reviewer provisioning and private-key
+distribution to exe.dev VMs are outside this PR's scope.
 No third-party Python packages or network access are needed for the test suite.
 
 Review the code first and record its full head SHA. Save the actual findings in a
@@ -160,6 +162,45 @@ Real acceptance is **pending registration/installation and real reviews**:
 5. Verify the normal human identity again. Record acceptance evidence here in a
    follow-up commit; do not call this complete before both real identity and
    non-`COMMENT` validation pass.
+
+### PR #8 follow-up validation — 2026-09-22
+
+Validated the existing PR worktree based on `54d3c9d`, with the thin dependency
+documentation correction and core package additions removed. The core package
+list now matches approved master; no existing core bootstrap requirement was
+found for adding these reviewer-only prerequisites. Dotfiles input was clean at
+`c0b6febc5bcd6d7863c10c8e3cf7c2538ae095f3`.
+
+- `sudo bash wsl/test-fresh-ubuntu.sh /home/cenorthrup/projects/dotfiles`
+  could not start: `sudo: A terminal is required to authenticate`.
+- Running the same script through WSL's root launcher installed Python 3 and
+  OpenSSL, but exited 1 in the existing shell/editor checks. The noninteractive
+  terminal environment was consistent with Prezto disabling highlighting for
+  `TERM=dumb`, while those checks require its highlighting function.
+- Repeating with an explicit terminal type exited **0**:
+
+  ```bash
+  /mnt/c/Windows/System32/wsl.exe -d Ubuntu -u root -- \
+    env TERM=xterm-256color bash /tmp/devenv-pr25-reviewer/wsl/test-fresh-ubuntu.sh \
+    /home/cenorthrup/projects/dotfiles
+  ```
+
+  Ubuntu Base 26.04.1 checksum verification passed. The unmodified test finished:
+  `PASS: missing-dotfiles resume, native tools, fresh PATH, no Node/auth, and byte/mtime-stable rerun.`
+  Local logs: `/tmp/devenv-pr8-fresh-ubuntu.log`,
+  `/tmp/devenv-pr8-fresh-ubuntu-root.log`, and
+  `/tmp/devenv-pr8-fresh-ubuntu-terminal.log` respectively. The temporary root
+  filesystems were cleaned by the test; no host packages were changed.
+- `tests/agent-review.sh` (9 tests), `tests/agent-skills.sh`,
+  `tests/thin-tools.sh`, and `tests/dotfiles-permissions.sh` all passed.
+  Package-adapter and fresh-Ubuntu shell syntax checks and `git diff --check`
+  passed as well.
+
+Live App acceptance is still blocked: the local reviewer config is absent, and
+the real App ID, installation ID and private-key path have not been supplied.
+No bot review or approval was manufactured. Keep PR #8 draft until an independent
+reviewer completes the real identity/provenance and justified non-`COMMENT`
+validation described above.
 
 GitHub references: [App registration](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app),
 [App JWTs](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app),
