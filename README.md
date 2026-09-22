@@ -64,6 +64,20 @@ working candidate; it has not been designated as a reusable template.
 Authentication credentials and private keys are never part of reusable images or
 bootstrap scripts.
 
+## Agent review submission
+
+The [agent review guide](docs/github-reviewer.md) covers commit-bound review
+submission, local credential handling and key rotation.
+`just submit-agent-review --help` exposes the reviewer-only interface;
+`just test-agent-review` runs its offline tests. Each review records the actual
+model, effort and harness separately from the GitHub identity that posts it.
+Clay remains the final merge authority.
+
+This repository owns the submission mechanism, not the identity. No GitHub App is
+registered here; the App name is local configuration rather than compiled in.
+Creating the `claytron-reviewer` and `claytron-worker` identities and validating
+them live is deferred to the Claytron9000 GitHub identity/bootstrap work.
+
 ## Factory agent skills
 
 Factory-owned skills live under [`skills/`](skills/) and are copied to the
