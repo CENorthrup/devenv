@@ -23,3 +23,23 @@ check target="wsl-ubuntu-thin":
 # Report active versions, configuration sources, role, and drift.
 doctor target="wsl-ubuntu-thin":
     bash scripts/doctor.sh "{{target}}"
+
+# Deploy canonical skills from the approved default-branch revision.
+apply-skills:
+    bash scripts/deploy-agent-skills.sh deploy
+
+# Check deployed skills and provenance without changing them.
+check-skills:
+    bash scripts/deploy-agent-skills.sh check
+
+# Explicitly deploy the current checkout into an isolated test state.
+test-skills:
+    bash scripts/deploy-agent-skills.sh test-deploy
+
+# Remove the isolated feature-skill test state.
+clean-test-skills:
+    bash scripts/deploy-agent-skills.sh test-clean
+
+# Exercise deployment, drift, ownership, and isolated branch-test behavior.
+test-agent-skills:
+    bash tests/agent-skills.sh

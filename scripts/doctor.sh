@@ -45,6 +45,13 @@ if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   [[ -z $(git -C "$root" status --porcelain) ]] && printf 'Devenv worktree: clean\n' || printf 'Devenv worktree: modified\n'
 fi
 
+printf '\nFactory agent skills:\n'
+if bash "$root/scripts/deploy-agent-skills.sh" check >/dev/null 2>&1; then
+  printf 'Managed skills: match approved revision\n'
+else
+  printf 'Managed skills: drifted or not deployed\n'
+fi
+
 marker="$HOME/.local/state/devenv-dotfiles/$role-configured"
 if [[ -d $dotfiles_source/.git ]]; then
   printf 'Dotfiles checkout revision: %s\n' "$(git -C "$dotfiles_source" rev-parse --short HEAD)"
