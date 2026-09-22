@@ -121,18 +121,37 @@ deploy_agent() {
 
   declare -A desired=()
   declare -A skill_names=()
+  declare -A source_skills=()
+  declare -A recorded_skills=()
   declare -a managed_skills=()
   read_old_manifest "$old_manifest"
-  for rel in "${old_skills[@]}"; do skill_names["$rel"]=1; done
-  for rel in "${old_files[@]}"; do skill_names["${rel%%/*}"]=1; done
+  for rel in "${old_skills[@]}"; do
+    skill_names["$rel"]=1
+    recorded_skills["$rel"]=1
+  done
+  for rel in "${old_files[@]}"; do
+    skill_names["${rel%%/*}"]=1
+    recorded_skills["${rel%%/*}"]=1
+  done
   while IFS= read -r -d '' target; do
-    skill_names["$(basename -- "$target")"]=1
+    rel=$(basename -- "$target")
+    skill_names["$rel"]=1
+    source_skills["$rel"]=1
   done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -type d -print0)
-  for rel in "${!skill_names[@]}"; do managed_skills+=("$rel"); done
   while IFS=$'\t' read -r hash rel; do
     [[ -n $rel ]] || continue
     desired["$rel"]=$hash
   done < "$source_files"
+  for rel in "${!source_skills[@]}"; do
+    target=$destination/$rel
+    [[ -d $target && ! -L $target ]] || continue
+    [[ -n ${recorded_skills[$rel]+present} ]] && continue
+    while IFS= read -r -d '' path; do
+      hash=${path#"$destination"/}
+      [[ -n ${desired[$hash]+present} ]] || fail "unmanaged files already exist in new skill destination: $path"
+    done < <(find "$target" \( -type f -o -type l \) -print0)
+  done
+  for rel in "${!skill_names[@]}"; do managed_skills+=("$rel"); done
   remove_obsolete_managed_files "$destination" "$old_manifest"
   while IFS=$'\t' read -r hash rel; do
     [[ -n $rel ]] || continue
@@ -231,8 +250,8 @@ fi
 if [[ $action == test-deploy ]]; then
   prepare_worktree_source
   source_files=$(mktemp "${TMPDIR:-/tmp}/devenv-skills-files.XXXXXXXX")
-  list_source_files "$source_dir" > "$source_files"
   trap 'rm -f -- "$source_files"' EXIT
+  list_source_files "$source_dir" > "$source_files"
   declare -A destinations=(
     [codex]="$test_root/codex/skills"
     [claude]="$test_root/claude/skills"

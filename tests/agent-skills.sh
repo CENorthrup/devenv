@@ -4,6 +4,7 @@ set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 scratch=$(mktemp -d /tmp/devenv-agent-skills.XXXXXXXX)
 trap 'rm -rf -- "$scratch"' EXIT
+mkdir -p "$scratch/tmp"
 
 repo=$scratch/repo
 home=$scratch/home
@@ -23,11 +24,22 @@ git -C "$repo" commit -qm initial
 
 run_lifecycle() {
   HOME="$home" \
+  TMPDIR="$scratch/tmp" \
   DEVENV_SKILLS_REPOSITORY="$repo" \
   DEVENV_SKILLS_STATE_DIR="$state" \
   DEVENV_SKILLS_TEST_ROOT="$test_root" \
   DEVENV_SKILLS_APPROVED_REF=master \
   bash "$root/scripts/deploy-agent-skills.sh" "$@"
+}
+
+run_lifecycle_at() {
+  HOME="$1" \
+  TMPDIR="$scratch/tmp" \
+  DEVENV_SKILLS_REPOSITORY="$repo" \
+  DEVENV_SKILLS_STATE_DIR="$2" \
+  DEVENV_SKILLS_TEST_ROOT="$3" \
+  DEVENV_SKILLS_APPROVED_REF=master \
+  bash "$root/scripts/deploy-agent-skills.sh" "${@:4}"
 }
 
 run_lifecycle deploy
@@ -74,6 +86,18 @@ test ! -e "$test_root"
 ln -s SKILL.md "$repo/skills/example/unsupported-link"
 if run_lifecycle test-deploy; then exit 1; fi
 rm "$repo/skills/example/unsupported-link"
+test -z "$(find "$scratch/tmp" -name 'devenv-skills-files.*' -print -quit)"
+
+# A first deployment must not claim a same-named user directory silently.
+collision_home=$scratch/collision-home
+collision_state=$scratch/collision-state
+collision_test_root=$scratch/collision-test
+mkdir -p "$collision_home/.agents/skills/example" "$collision_home/.claude/skills/example"
+printf 'user notes\n' > "$collision_home/.agents/skills/example/my-notes.md"
+printf 'user notes\n' > "$collision_home/.claude/skills/example/my-notes.md"
+if run_lifecycle_at "$collision_home" "$collision_state" "$collision_test_root" deploy; then exit 1; fi
+test -f "$collision_home/.agents/skills/example/my-notes.md"
+test -f "$collision_home/.claude/skills/example/my-notes.md"
 
 # Removing a canonical skill from the approved revision removes only its managed copies.
 git -C "$repo" switch -q master --discard-changes
