@@ -64,28 +64,25 @@ working candidate; it has not been designated as a reusable template.
 Authentication credentials and private keys are never part of reusable images or
 bootstrap scripts.
 
-## Agent review submission
+## Factory control plane
 
-The [agent review guide](docs/github-reviewer.md) covers commit-bound review
-submission, local credential handling and key rotation.
-`just submit-agent-review --help` exposes the reviewer-only interface;
-`just test-agent-review` runs its offline tests. Each review records the actual
-model, effort and harness separately from the GitHub identity that posts it.
-Clay remains the final merge authority.
-
-This repository owns the submission mechanism, not the identity. No GitHub App is
-registered here; the App name is local configuration rather than compiled in.
-Creating the `claytron-reviewer` and `claytron-worker` identities and validating
-them live is deferred to the Claytron9000 GitHub identity/bootstrap work.
+Software-factory orchestration, agent identities, review submission, project
+lifecycle and human gates belong to the standalone
+[Claytron9000](https://github.com/CENorthrup/Claytron9000) repository. `devenv`
+does not require a Claytron9000 checkout. It only provisions reusable machine
+capabilities, including agent discovery and any future GStack installation.
 
 ## Factory agent skills
 
-Factory-owned skills live under [`skills/`](skills/) and are copied to the
-explicit Codex (`~/.agents/skills`) and Claude Code (`~/.claude/skills`)
-destinations. `just apply-skills` deploys the approved `origin/master` revision
-and records provenance and file hashes under `~/.local/state/devenv-skills`.
-It does not fetch; `origin/master` is the last-fetched approved state, with a
-local `master` fallback when no remote-tracking default branch exists.
+This repository provides the generic mechanism for copying approved agent skill
+content to the explicit Codex (`~/.agents/skills`) and Claude Code
+(`~/.claude/skills`) discovery locations. `just apply-skills` deploys the
+approved `origin/master` revision and records provenance and file hashes under
+`~/.local/state/devenv-skills`. Factory-specific skill content and workflow
+orchestration belong to Claytron9000; this repository does not claim to be
+their canonical source. The deployment command does not fetch; `origin/master`
+is the last-fetched approved state, with a local `master` fallback when no
+remote-tracking default branch exists.
 Use `just check-skills` for a read-only drift check. To exercise the current
 checkout without changing installed skills, use `just test-skills`; its copies
 are isolated under `~/.local/state/devenv-skills-test` and can be removed with

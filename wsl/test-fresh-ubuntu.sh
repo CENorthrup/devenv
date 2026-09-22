@@ -53,7 +53,7 @@ su - tester -c 'export PATH="$HOME/.local/bin:$PATH"; export DEVENV_DOTFILES_SOU
 snapshot > /tmp/thin-after
 cmp /tmp/thin-before /tmp/thin-after
 test "$(getent passwd tester | cut -d: -f7)" = /usr/bin/zsh
-su - tester -c '/usr/bin/zsh -lic "command -v git >/dev/null && command -v ssh >/dev/null && command -v chezmoi >/dev/null && command -v just >/dev/null && command -v starship >/dev/null && command -v eza >/dev/null && command -v bat >/dev/null && command -v fd >/dev/null && command -v rg >/dev/null && command -v fzf >/dev/null && command -v yazi >/dev/null && command -v nvim >/dev/null && command -v tmux >/dev/null"'
+su - tester -c '/usr/bin/zsh -lic "command -v git >/dev/null && command -v ssh >/dev/null && command -v openssl >/dev/null && command -v python3 >/dev/null && command -v chezmoi >/dev/null && command -v just >/dev/null && command -v starship >/dev/null && command -v eza >/dev/null && command -v bat >/dev/null && command -v fd >/dev/null && command -v rg >/dev/null && command -v fzf >/dev/null && command -v yazi >/dev/null && command -v nvim >/dev/null && command -v tmux >/dev/null"'
 su - tester -c 'bash /devenv/scripts/check-thin-tools.sh check'
 su - tester -c 'cd /devenv; DEVENV_DOTFILES_SOURCE=/dotfiles ~/.local/bin/mise -E thin exec -- just doctor'
 su - tester -c '/usr/bin/zsh -lic "! command -v node && ! command -v npm"'
