@@ -11,6 +11,8 @@ state=$scratch/state
 test_root=$scratch/test-state
 mkdir -p "$repo/skills" "$home/.agents/skills/user-skill" "$home/.claude/skills/user-skill"
 cp -R "$root/tests/fixtures/skills/example" "$repo/skills/example"
+mkdir -p "$repo/skills/example/references"
+printf 'reference\n' > "$repo/skills/example/references/note file.md"
 printf 'user\n' > "$home/.agents/skills/user-skill/SKILL.md"
 printf 'user\n' > "$home/.claude/skills/user-skill/SKILL.md"
 git -C "$repo" init -q -b master
@@ -35,9 +37,18 @@ run_lifecycle check
 test "$(<"$home/.agents/skills/user-skill/SKILL.md")" = user
 
 before=$(stat -c '%Y:%s' "$state/codex.manifest")
+find "$home/.claude/skills" -type f -printf '%p %i %T@\n' | sort > "$scratch/before-files"
 run_lifecycle deploy
 after=$(stat -c '%Y:%s' "$state/codex.manifest")
 test "$before" = "$after"
+find "$home/.claude/skills" -type f -printf '%p %i %T@\n' | sort > "$scratch/after-files"
+cmp "$scratch/before-files" "$scratch/after-files"
+
+mkdir -p "$home/.agents/skills/example/references/stray/deep"
+printf 'stray\n' > "$home/.agents/skills/example/references/stray/deep/file.md"
+if run_lifecycle check; then exit 1; fi
+run_lifecycle deploy
+test ! -e "$home/.agents/skills/example/references/stray"
 
 printf 'modified\n' >> "$home/.agents/skills/example/SKILL.md"
 if run_lifecycle check; then exit 1; fi
@@ -58,6 +69,11 @@ grep -qxF feature "$test_root/codex/skills/example/SKILL.md"
 grep -qxF 'This file exists only for deployment tests.' "$home/.agents/skills/example/SKILL.md"
 run_lifecycle test-clean
 test ! -e "$test_root"
+
+# Symlinks in canonical skills are rejected instead of being silently skipped.
+ln -s SKILL.md "$repo/skills/example/unsupported-link"
+if run_lifecycle test-deploy; then exit 1; fi
+rm "$repo/skills/example/unsupported-link"
 
 # Removing a canonical skill from the approved revision removes only its managed copies.
 git -C "$repo" switch -q master --discard-changes

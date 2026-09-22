@@ -70,6 +70,8 @@ Factory-owned skills live under [`skills/`](skills/) and are copied to the
 explicit Codex (`~/.agents/skills`) and Claude Code (`~/.claude/skills`)
 destinations. `just apply-skills` deploys the approved `origin/master` revision
 and records provenance and file hashes under `~/.local/state/devenv-skills`.
+It does not fetch; `origin/master` is the last-fetched approved state, with a
+local `master` fallback when no remote-tracking default branch exists.
 Use `just check-skills` for a read-only drift check. To exercise the current
 checkout without changing installed skills, use `just test-skills`; its copies
 are isolated under `~/.local/state/devenv-skills-test` and can be removed with

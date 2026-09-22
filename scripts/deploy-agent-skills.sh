@@ -34,6 +34,9 @@ list_source_files() {
     [[ -f $skill/SKILL.md ]] || fail "skill is missing SKILL.md: ${skill#"$source"/}"
   done < <(find "$source" -mindepth 1 -maxdepth 1 -type d -print0 | sort -z)
   while IFS= read -r -d '' path; do
+    fail "skills must not contain symlinks: ${path#"$source"/}"
+  done < <(find "$source" -mindepth 2 -type l -print0 | sort -z)
+  while IFS= read -r -d '' path; do
     [[ -f $path && ! -L $path ]] || fail "skills must contain regular files, not symlinks: ${path#"$source"/}"
     rel=${path#"$source"/}
     printf '%s\t%s\n' "$(sha256 "$path")" "$rel"
@@ -55,7 +58,7 @@ prepare_archive_source() {
   approved_commit=$(git -C "$repository" rev-parse "$ref^{commit}")
   snapshot=$(mktemp -d "${TMPDIR:-/tmp}/devenv-skills.XXXXXXXX")
   cleanup_snapshot=1
-  trap '[[ ${cleanup_snapshot:-0} == 1 ]] && rm -rf -- "$snapshot"' EXIT
+  trap '[[ ${cleanup_snapshot:-0} == 1 ]] && rm -rf -- "$snapshot"; [[ -n ${source_files:-} ]] && rm -f -- "$source_files"' EXIT
   if git -C "$repository" archive --format=tar "$approved_commit" skills 2>/dev/null | tar -xf - -C "$snapshot" 2>/dev/null; then
     :
   else
@@ -93,19 +96,18 @@ read_old_manifest() {
   done < "$manifest"
 }
 
-safe_remove_old_files() {
-  local destination=$1 manifest=$2 rel path
+remove_obsolete_managed_files() {
+  local destination=$1 manifest=$2 rel path skill
   read_old_manifest "$manifest"
-  for rel in "${old_files[@]}"; do
-    path=$destination/$rel
-    [[ -f $path || -L $path ]] && rm -f -- "$path"
-  done
-  # Remove only empty skill directories that this manifest previously managed.
-  declare -A skills=()
-  for rel in "${old_files[@]}"; do skills[${rel%%/*}]=1; done
-  local skill
-  for skill in "${old_skills[@]}" "${!skills[@]}"; do
-    [[ -d $destination/$skill ]] && rmdir --ignore-fail-on-non-empty -- "$destination/$skill" 2>/dev/null || true
+  for skill in "${managed_skills[@]}"; do
+    path=$destination/$skill
+    [[ ! -L $path ]] || fail "managed skill directory is a symlink: $path"
+    [[ -d $path ]] || continue
+    while IFS= read -r -d '' path; do
+      rel=${path#"$destination"/}
+      [[ -n ${desired[$rel]+present} ]] || rm -f -- "$path"
+    done < <(find "$destination/$skill" \( -type f -o -type l \) -print0)
+    find "$destination/$skill" -depth -type d -empty -delete
   done
 }
 
@@ -117,18 +119,23 @@ deploy_agent() {
   [[ ! -L $destination ]] || fail "managed destination is a symlink: $destination"
   mkdir -p "$destination" "$manifest_root"
 
-  safe_remove_old_files "$destination" "$old_manifest"
-
   declare -A desired=()
   declare -A skill_names=()
+  declare -a managed_skills=()
   read_old_manifest "$old_manifest"
   for rel in "${old_skills[@]}"; do skill_names["$rel"]=1; done
+  for rel in "${old_files[@]}"; do skill_names["${rel%%/*}"]=1; done
   while IFS= read -r -d '' target; do
     skill_names["$(basename -- "$target")"]=1
   done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -type d -print0)
+  for rel in "${!skill_names[@]}"; do managed_skills+=("$rel"); done
   while IFS=$'\t' read -r hash rel; do
     [[ -n $rel ]] || continue
     desired["$rel"]=$hash
+  done < "$source_files"
+  remove_obsolete_managed_files "$destination" "$old_manifest"
+  while IFS=$'\t' read -r hash rel; do
+    [[ -n $rel ]] || continue
     target=$destination/$rel
     [[ ! -L $target ]] || fail "refusing to replace symlink: $target"
     if [[ ! -f $target ]] || [[ $(sha256 "$target") != "$hash" ]]; then
@@ -138,7 +145,7 @@ deploy_agent() {
       chmod --reference="$source_dir/$rel" "$temp" 2>/dev/null || true
       mv -f -- "$temp" "$target"
     fi
-  done < <(list_source_files "$source_dir")
+  done < "$source_files"
 
   local tmp_manifest
   tmp_manifest=$(mktemp "$manifest_root/.manifest.XXXXXXXX")
@@ -149,7 +156,7 @@ deploy_agent() {
   while IFS=$'\t' read -r hash rel; do
     [[ -n $rel ]] || continue
     printf 'file\t%s\t%s\n' "$rel" "$hash" >> "$tmp_manifest"
-  done < <(list_source_files "$source_dir")
+  done < "$source_files"
 
   if [[ -f $manifest ]] && cmp -s <(sed '/^deployed_at\t/d' "$manifest") "$tmp_manifest"; then
     rm -f -- "$tmp_manifest"
@@ -158,7 +165,11 @@ deploy_agent() {
     mv -f -- "$tmp_manifest.with-time" "$manifest"
     rm -f -- "$tmp_manifest"
   fi
-  printf '%s: deployed approved commit %s (%s files) to %s\n' "$agent" "$approved_commit" "${#desired[@]}" "$destination"
+  if [[ $source_kind == approved ]]; then
+    printf '%s: deployed approved revision %s (%s files) to %s\n' "$agent" "$approved_commit" "${#desired[@]}" "$destination"
+  else
+    printf '%s: deployed TEST working-tree revision %s (%s files) to %s\n' "$agent" "$approved_commit" "${#desired[@]}" "$destination"
+  fi
 }
 
 check_agent() {
@@ -219,6 +230,9 @@ fi
 
 if [[ $action == test-deploy ]]; then
   prepare_worktree_source
+  source_files=$(mktemp "${TMPDIR:-/tmp}/devenv-skills-files.XXXXXXXX")
+  list_source_files "$source_dir" > "$source_files"
+  trap 'rm -f -- "$source_files"' EXIT
   declare -A destinations=(
     [codex]="$test_root/codex/skills"
     [claude]="$test_root/claude/skills"
@@ -232,6 +246,8 @@ if [[ $action == test-deploy ]]; then
 fi
 
 prepare_archive_source
+source_files=$(mktemp "${TMPDIR:-/tmp}/devenv-skills-files.XXXXXXXX")
+list_source_files "$source_dir" > "$source_files"
 if [[ $action == deploy ]]; then
   mkdir -p "$state_root"
   for agent in "${agents[@]}"; do deploy_agent "$agent" "$state_root"; done
