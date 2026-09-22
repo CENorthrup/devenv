@@ -13,8 +13,6 @@ packages=(
   curl
   git
   openssh-client
-  openssl
-  python3
   unzip
   xz-utils
   zsh

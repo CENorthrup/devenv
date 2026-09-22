@@ -64,19 +64,13 @@ working candidate; it has not been designated as a reusable template.
 Authentication credentials and private keys are never part of reusable images or
 bootstrap scripts.
 
-## Agent review submission
+## Factory control plane
 
-The [agent review guide](docs/github-reviewer.md) covers commit-bound review
-submission, local credential handling and key rotation.
-`just submit-agent-review --help` exposes the reviewer-only interface;
-`just test-agent-review` runs its offline tests. Each review records the actual
-model, effort and harness separately from the GitHub identity that posts it.
-Clay remains the final merge authority.
-
-This repository owns the submission mechanism, not the identity. No GitHub App is
-registered here; the App name is local configuration rather than compiled in.
-Creating the `claytron-reviewer` and `claytron-worker` identities and validating
-them live is deferred to the Claytron9000 GitHub identity/bootstrap work.
+Software-factory orchestration, agent identities, review submission, project
+lifecycle and human gates belong to the standalone
+[Claytron9000](https://github.com/CENorthrup/Claytron9000) repository. `devenv`
+does not require a Claytron9000 checkout. It only provisions reusable machine
+capabilities, including agent discovery and any future GStack installation.
 
 ## Factory agent skills
 
